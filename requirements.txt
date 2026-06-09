@@ -1,0 +1,8 @@
+pytest>=8.3.0
+fastapi
+uvicorn
+websockets
+pydantic
+psycopg[binary]>=3.2.0
+tqdm
+torch
