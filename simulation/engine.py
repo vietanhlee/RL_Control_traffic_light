@@ -202,7 +202,7 @@ class SimulationEngine:
     def _spawn_vehicles_if_needed(self) -> None:
         import math
         wave = (math.sin(self.time_s / 50.0) + 1.0) / 2.0
-        dynamic_target = int(250 + wave * 1603)
+        dynamic_target = int(250 + wave * 1450)
         dynamic_interval = 0.015 + (1.0 - wave) * 1.0
         
         # Giới hạn số xe spawn tối đa mỗi step để tránh spike lag đột ngột khi reset
@@ -443,8 +443,15 @@ class SimulationEngine:
                 # Trigger phanh sớm: dựa vào tốc độ thực tế
                 trigger_dist = stop_line_dist + braking_dist + 8.0
 
+                # Khoảng cách để quyết định xe đã qua hẳn vạch dừng chưa
+                # Trừ đi 2.0m để cho phép sai số dừng lố vạch một chút
+                passed_stop_line_threshold = stop_line_dist - 2.0
+
                 if light_state == LightColor.RED and previous_distance <= trigger_dist:
-                    if previous_distance <= stop_line_dist:
+                    if previous_distance < passed_stop_line_threshold:
+                        # Đã qua hẳn vạch dừng -> cho đi tiếp để thoát nút giao
+                        pass
+                    elif previous_distance <= stop_line_dist:
                         # Đã đến vạch dừng → dừng hẳn
                         target_speed = 0.0
                         v.is_waiting = True
@@ -456,7 +463,11 @@ class SimulationEngine:
                         if slow_speed <= 0.5:
                             v.is_waiting = True
                 elif light_state == LightColor.YELLOW and previous_distance <= stop_line_dist + 5.0:
-                    target_speed = min(target_speed, 2.0)
+                    if previous_distance < passed_stop_line_threshold:
+                        # Đã qua hẳn vạch dừng -> đi tiếp
+                        pass
+                    else:
+                        target_speed = min(target_speed, 2.0)
 
                 # Tìm xe phía trước cùng làn để phanh/bám đuôi
                 front_vehicle = front_vehicle_dict[id(v)]
