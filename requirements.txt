@@ -1,8 +1,17 @@
-pytest>=8.3.0
-fastapi
-uvicorn
-websockets
-pydantic
+# ── Backend (FastAPI server + WebSocket) ──────────────────────────────────────
+fastapi>=0.115.0
+uvicorn>=0.30.0
+websockets>=12.0
+pydantic>=2.0.0
+starlette>=0.40.0
+
+# ── Database ──────────────────────────────────────────────────────────────────
 psycopg[binary]>=3.2.0
-tqdm
-torch
+
+# ── RL Model (QMIX) ──────────────────────────────────────────────────────────
+torch>=2.0.0          # Deep learning (QMIX, Dueling DQN, Mixing Network)
+numpy>=1.24.0         # Array ops trong JointReplayBuffer, features, environment
+tqdm>=4.65.0          # Progress bar cho training loop
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest>=8.3.0
