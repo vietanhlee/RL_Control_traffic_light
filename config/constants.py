@@ -16,10 +16,10 @@ DENSITY_SAMPLE_SECONDS = 1.0
 DB_FLUSH_SECONDS = 5.0
 SPAWN_INTERVAL_SECONDS = 0.8
 
-ZONE_LENGTH_METERS = 80.0
+ZONE_LENGTH_METERS = 100.0
 BOUNDARY_DISTANCE_METERS = 40.0
 STOP_LINE_DISTANCE_METERS = 8.0
-QUEUE_SPEED_THRESHOLD = 0.5
+QUEUE_SPEED_THRESHOLD = 9
 
 DEFAULT_TARGET_VEHICLE_COUNT = 90
 DEFAULT_MIN_SPEED_MPS = 12.0
@@ -29,12 +29,12 @@ DEFAULT_MAX_DECELERATION = 7.0
 DEFAULT_SAFE_GAP_METERS = 10.0
 
 DEFAULT_TURN_DISTRIBUTION = {
-    "left": 0.2,
+    "left": 0.1,
     "straight": 0.6,
-    "right": 0.2,
+    "right": 0.3,
 }
 
-DEFAULT_LIGHT_GREEN_SECONDS = 30.0
+DEFAULT_LIGHT_GREEN_SECONDS = 40.0
 DEFAULT_LIGHT_YELLOW_SECONDS = 5.0
 DEFAULT_LIGHT_RED_SECONDS = 50.0
 
@@ -88,6 +88,7 @@ INTERSECTION_CONNECTIONS = [
     (4, 5, 4),
     (5, 6, 4),
     (6, 7, 4),
+    (9, 10, 4), # Nâng cấp thêm 1 đoạn 4 làn
     
     # Đại lộ phụ (3 làn xe)
     (1, 5, 3),
@@ -96,19 +97,18 @@ INTERSECTION_CONNECTIONS = [
     (2, 6, 3),
     (6, 10, 3),
     (10, 14, 3),
+    (4, 8, 3), # Nâng cấp thêm 1 đoạn 3 làn
     
     # Đường trục thường (2 làn xe)
     (0, 1, 2),
     (1, 2, 2),
     (2, 3, 2),
     (8, 9, 2),
-    (9, 10, 2),
     (10, 11, 2),
     (12, 13, 2),
     (13, 14, 2),
     (14, 15, 2),
     (0, 4, 2),
-    (4, 8, 2),
     (8, 12, 2),
     (3, 7, 2),
     (7, 11, 2),
@@ -139,10 +139,10 @@ WEIGHT_QUEUE = 3.0           # Giữ nguyên của bạn (Rất tốt để ưu 
 WEIGHT_IMBALANCE = 4.0       # Giữ nguyên của bạn (Rất tốt cho traffic lệch)
 WEIGHT_RED_PRESSURE = 1.5    # Tăng lên để chống "bỏ đói" nhánh ít xe
 WEIGHT_SWITCH_PENALTY = 3.0  # Tăng lên để chống giật/đổi đèn liên tục
-WEIGHT_SPEED_BONUS = 0.75    # Giữ nguyên của bạn
+WEIGHT_SPEED_BONUS = 0.1   # Giữ nguyên của bạn
 
-SCALE_QUEUE = 12.0
-SCALE_IMBALANCE = 10.0
+SCALE_QUEUE = 10.0
+SCALE_IMBALANCE = 5.0
 SCALE_RED_PRESSURE = 10.0
-SCALE_SPEED = 18.0
+SCALE_SPEED = 22.0
 REWARD_CLIP = 5.0

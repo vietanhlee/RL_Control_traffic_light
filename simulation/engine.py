@@ -273,7 +273,7 @@ class SimulationEngine:
         )
         self.vehicles.append(vehicle)
 
-    def _generate_route(self, origin: int, max_hops: int = 6) -> list[int]:
+    def _generate_route(self, origin: int, max_hops: int = 18) -> list[int]:
         neighbors = self.network.neighbors(origin)
         if not neighbors:
             return [origin]
@@ -310,7 +310,8 @@ class SimulationEngine:
 
             # Randomly terminate route to preserve diverse trip lengths.
             if len(path) >= 4 and self.random.random() < 0.35:
-                break
+                if self.network.is_boundary_node(chosen):
+                    break
 
         return path
 
@@ -507,13 +508,31 @@ class SimulationEngine:
 
     def _advance_vehicle_to_next_edge(self, vehicle: Vehicle, overflow_m: float) -> bool:
         vehicle.path_index += 1
+        current_node = vehicle.path[vehicle.path_index]
+
         if vehicle.path_index >= len(vehicle.path) - 1:
-            return False
+            if self.network.is_boundary_node(current_node):
+                return False
+            
+            boundary_nodes = [n for n in self.network.all_nodes() if n != current_node and self.network.is_boundary_node(n)]
+            if boundary_nodes:
+                destination = self.random.choice(boundary_nodes)
+                extension = self.network.shortest_path(current_node, destination)
+                if len(extension) > 1:
+                    vehicle.path = vehicle.path[: vehicle.path_index] + extension
+                else:
+                    return False
+            else:
+                return False
 
         # Re-route occasionally to keep the stream dynamic and stochastic.
-        if self.random.random() < 0.35 or vehicle.remaining_nodes < 2:
-            destination = self.random.choice([n for n in self.network.all_nodes() if n != vehicle.current_from])
-            extension = self.network.shortest_path(vehicle.current_from, destination)
+        elif self.random.random() < 0.35 or vehicle.remaining_nodes < 2:
+            boundary_nodes = [n for n in self.network.all_nodes() if n != current_node and self.network.is_boundary_node(n)]
+            if boundary_nodes:
+                destination = self.random.choice(boundary_nodes)
+            else:
+                destination = self.random.choice([n for n in self.network.all_nodes() if n != current_node])
+            extension = self.network.shortest_path(current_node, destination)
             if len(extension) > 1:
                 # Keep the completed prefix intact and re-seed route from the current node.
                 vehicle.path = vehicle.path[: vehicle.path_index] + extension
