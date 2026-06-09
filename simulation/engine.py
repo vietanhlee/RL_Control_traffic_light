@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import concurrent.futures
 import random
 from dataclasses import dataclass, field
 from math import acos
@@ -55,6 +56,7 @@ class SimulationEngine:
     network: RoadNetwork = field(default_factory=RoadNetwork.from_defaults)
 
     def __post_init__(self) -> None:
+        self.db_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         self.repository = create_repository(self.database_url)
         self.collector = MetricsCollector(window_seconds=METRICS_WINDOW_SECONDS)
         self.calculator = MetricsCalculator()
@@ -562,7 +564,7 @@ class SimulationEngine:
                         self.global_imbalance,
                     )
                 )
-        self.repository.save_metrics_batch(rows)
+        self.db_executor.submit(self.repository.save_metrics_batch, rows)
 
     def _vehicle_render_state(self, vehicle: Vehicle) -> VehicleRenderState:
         if not self.network.has_edge(vehicle.current_from, vehicle.current_to):

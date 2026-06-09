@@ -56,6 +56,9 @@ class TrafficApiClient:
     def get_state(self, intersection_id: int) -> dict[str, Any]:
         return self.request_json("GET", f"/api/v1/state/{intersection_id}")
 
+    def get_states(self) -> dict[str, Any]:
+        return self.request_json("GET", "/api/v1/states")
+
     def get_reward_metrics(self, intersection_id: int) -> dict[str, Any]:
         return self.request_json("GET", f"/api/v1/reward_metrics/{intersection_id}")
 

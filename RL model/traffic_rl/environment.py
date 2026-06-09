@@ -109,7 +109,7 @@ class TrafficEnvironment:
         return self.client.get_state(intersection_id)
 
     def observe_all(self) -> dict[int, dict[str, Any]]:
-        """Lấy observation từ tất cả nút giao trong mạng.
+        """Lấy observation từ tất cả nút giao trong mạng thông qua batch endpoint.
 
         Nếu intersection_ids chưa được khởi tạo, tự động gọi bootstrap().
 
@@ -118,7 +118,9 @@ class TrafficEnvironment:
         """
         if not self.intersection_ids:
             self.bootstrap()
-        return {intersection_id: self.observe(intersection_id) for intersection_id in self.intersection_ids}
+        states = self.client.get_states()
+        # Chuyển đổi key từ chuỗi (do JSON) thành int
+        return {int(k): v for k, v in states.items()}
 
     # ─── Các hàm tính feature phụ trợ cho reward ──────────────────────────────
 
