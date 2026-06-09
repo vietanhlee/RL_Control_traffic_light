@@ -330,13 +330,20 @@ class SimulationEngine:
             # Sắp xếp xe từ trước ra sau
             edge_vehicles.sort(key=lambda v: v.progress_m, reverse=True)
             
+            lanes_vehicles = {l: [] for l in range(edge.lanes)}
+            for v in edge_vehicles:
+                lanes_vehicles[v.lane_index].append(v)
+                
+            front_same_lane_dict = {}
+            for l, v_list in lanes_vehicles.items():
+                prev_v = None
+                for curr_v in v_list:
+                    front_same_lane_dict[id(curr_v)] = prev_v
+                    prev_v = curr_v
+            
             for v in edge_vehicles:
                 # Tìm xe phía trước cùng làn
-                front_same_lane = None
-                for other in edge_vehicles:
-                    if other.lane_index == v.lane_index and other.progress_m > v.progress_m:
-                        if front_same_lane is None or other.progress_m < front_same_lane.progress_m:
-                            front_same_lane = other
+                front_same_lane = front_same_lane_dict[id(v)]
                 
                 # Nếu có xe phía trước cùng làn và khoảng cách nhỏ hơn khoảng cách an toàn
                 if front_same_lane is not None:
@@ -353,17 +360,15 @@ class SimulationEngine:
                             
                         # Thử xem làn nào an toàn để vượt
                         for target_lane in possible_lanes:
-                            # Tìm xe phía trước và phía sau trên làn đích
+                            target_list = lanes_vehicles[target_lane]
                             front_target = None
                             back_target = None
-                            for other in edge_vehicles:
-                                if other.lane_index == target_lane:
-                                    if other.progress_m > v.progress_m:
-                                        if front_target is None or other.progress_m < front_target.progress_m:
-                                            front_target = other
-                                    elif other.progress_m < v.progress_m:
-                                        if back_target is None or other.progress_m > back_target.progress_m:
-                                            back_target = other
+                            for other in target_list:
+                                if other.progress_m > v.progress_m:
+                                    front_target = other
+                                else:
+                                    back_target = other
+                                    break
                             
                             # Kiểm tra an toàn trước
                             safe_front = True
@@ -381,13 +386,39 @@ class SimulationEngine:
                                     
                             # Nếu cả trước và sau đều an toàn, chuyển làn ngay lập tức
                             if safe_front and safe_back:
+                                old_lane = v.lane_index
                                 v.lane_index = target_lane
+                                lanes_vehicles[old_lane].remove(v)
+                                insert_idx = 0
+                                for i, tv in enumerate(target_list):
+                                    if tv.progress_m < v.progress_m:
+                                        break
+                                    insert_idx = i + 1
+                                target_list.insert(insert_idx, v)
+                                
+                                front_same_lane_dict.clear()
+                                for l_idx, v_list_new in lanes_vehicles.items():
+                                    prev_v = None
+                                    for curr_v in v_list_new:
+                                        front_same_lane_dict[id(curr_v)] = prev_v
+                                        prev_v = curr_v
                                 break
 
         # Phase 2: Speed and position updates (bám đuôi cùng làn)
         for edge_key, edge_vehicles in vehicles_by_edge.items():
             edge = self.network.edge(*edge_key)
             edge_vehicles.sort(key=lambda v: v.progress_m, reverse=True)
+
+            lanes_vehicles = {l: [] for l in range(edge.lanes)}
+            for v in edge_vehicles:
+                lanes_vehicles[v.lane_index].append(v)
+                
+            front_vehicle_dict = {}
+            for l, v_list in lanes_vehicles.items():
+                prev_v = None
+                for curr_v in v_list:
+                    front_vehicle_dict[id(curr_v)] = prev_v
+                    prev_v = curr_v
 
             for v in edge_vehicles:
                 previous_distance = edge.length_m - v.progress_m
@@ -428,11 +459,7 @@ class SimulationEngine:
                     target_speed = min(target_speed, 2.0)
 
                 # Tìm xe phía trước cùng làn để phanh/bám đuôi
-                front_vehicle = None
-                for other in edge_vehicles:
-                    if other.lane_index == v.lane_index and other.progress_m > v.progress_m:
-                        if front_vehicle is None or other.progress_m < front_vehicle.progress_m:
-                            front_vehicle = other
+                front_vehicle = front_vehicle_dict[id(v)]
 
                 if front_vehicle is not None:
                     gap = front_vehicle.progress_m - v.progress_m - front_vehicle.length_m
