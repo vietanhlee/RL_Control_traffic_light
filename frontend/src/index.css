@@ -1,0 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at top left, rgba(34, 211, 238, 0.12), transparent 32%),
+    radial-gradient(circle at top right, rgba(168, 85, 247, 0.11), transparent 30%),
+    linear-gradient(180deg, #020617 0%, #020816 48%, #040814 100%);
+  font-family: 'Inter', system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+html {
+  min-height: 100%;
+  background: #020617;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: #f8fafc;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.28);
+  color: #ffffff;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.85);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.55), rgba(168, 85, 247, 0.55));
+  border-radius: 999px;
+  border: 2px solid rgba(2, 6, 23, 0.85);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(34, 211, 238, 0.75), rgba(168, 85, 247, 0.75));
+}
