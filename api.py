@@ -53,6 +53,10 @@ engine_lock = asyncio.Lock()
 class ActionRequest(BaseModel):
     action: int  # 0 for Keep, 1 for Change
 
+
+class ActionsRequest(BaseModel):
+    actions: Dict[int, int]
+
 @app.on_event("startup")
 async def startup_event():
     asyncio.create_task(simulation_loop())
@@ -255,6 +259,19 @@ async def post_action(intersection_id: int, request: ActionRequest):
         if request.action == 1:
             engine.force_switch_phase(intersection_id)
         return {"status": "ok", "action_taken": request.action}
+
+
+@app.post("/api/v1/actions")
+async def post_actions(request: ActionsRequest):
+    async with engine_lock:
+        applied = 0
+        for intersection_id, action in request.actions.items():
+            if intersection_id not in engine.intersections:
+                continue
+            if action == 1:
+                engine.force_switch_phase(intersection_id)
+            applied += 1
+        return {"status": "ok", "applied": applied}
 
 @app.get("/api/v1/network")
 async def get_network():

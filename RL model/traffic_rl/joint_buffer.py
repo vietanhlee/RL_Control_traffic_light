@@ -56,7 +56,7 @@ class JointReplayBuffer:
 
     Args:
         n_agents   : Số agents (16 nút giao thông).
-        obs_dim    : Chiều local observation của mỗi agent (feature_size + n_agents nếu dùng agent ID).
+        obs_dim    : Chiều local observation của mỗi agent (obs_dim gốc + n_agents nếu ghép agent ID).
         global_state_dim: Chiều global state = n_agents × obs_dim.
         capacity   : Số joint transitions tối đa (mặc định 5000).
     """

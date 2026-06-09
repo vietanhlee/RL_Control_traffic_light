@@ -141,7 +141,7 @@ class QMIXAgent:
 
     Args:
         n_agents          : So agents = so nut giao (16).
-        obs_dim           : Chieu local observation (feature_size).
+        obs_dim           : Chieu local observation (obs_dim goc cua moi agent).
         learning_rate     : Learning rate cho Adam.
         gamma             : Discount factor.
         epsilon           : Epsilon exploration ban dau.
@@ -503,15 +503,3 @@ class QMIXAgent:
         except Exception as exc:
             print(f"[WARNING] Khong the tai QMIX model tu '{path}' (loi: {exc}). Khoi tao moi.")
             return cls(n_agents=default_n_agents, obs_dim=default_obs_dim, **kwargs)
-
-    # ─── Backward compatibility alias ─────────────────────────────────────
-
-    @property
-    def feature_size(self) -> int:
-        """Alias backward-compat: tra ve obs_dim."""
-        return self.obs_dim
-
-
-# Alias backward compatibility
-LinearQAgent = QMIXAgent
-DuelingQAgent = QMIXAgent

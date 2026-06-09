@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 # ─── API & Training Loop ───────────────────────────────────────────────────────
 DEFAULT_BASE_URL = "http://127.0.0.1:8011"
-DEFAULT_DECISION_INTERVAL_SECONDS = 5   # Giây chờ giữa các quyết định
+DEFAULT_DECISION_INTERVAL_SECONDS = 1.5 # Giây chờ giữa các quyết định
 DEFAULT_SAVE_EVERY = 250                   # Lưu model mỗi N step
 DEFAULT_MODEL_PATH = "RL model/artifacts/qmix_agent.pth"
 DEFAULT_HISTORY_WINDOW = 32               # Cửa sổ tính moving average

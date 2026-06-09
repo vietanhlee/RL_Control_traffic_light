@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 import {
   Activity,
   ArrowUpRight,
@@ -11,7 +11,7 @@ import {
   Settings2,
   Sparkles,
   TriangleAlert,
-} from 'lucide-react';
+} from "lucide-react";
 
 export default function App() {
   const canvasRef = useRef(null);
@@ -23,7 +23,7 @@ export default function App() {
   const [networkData, setNetworkData] = useState(null);
   const [selectedIntersection, setSelectedIntersection] = useState(0);
   const [isSwitching, setIsSwitching] = useState(false);
-  const apiBase = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
+  const apiBase = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8011";
 
   // 1. Fetch Network Topology
   useEffect(() => {
@@ -47,7 +47,9 @@ export default function App() {
 
   // 2. WebSocket for live rendering
   useEffect(() => {
-    const ws = new WebSocket(`${apiBase.replace(/^http/, 'ws')}/ws/simulation/render`);
+    const ws = new WebSocket(
+      `${apiBase.replace(/^http/, "ws")}/ws/simulation/render`,
+    );
     let lastRenderTime = 0;
     const renderThrottleMs = 300; // Render xe ở tần số thấp ~3.3 FPS để chống lag bản đồ
 
@@ -62,7 +64,7 @@ export default function App() {
         setCanvasData({
           time_s: data.time_s,
           vehicles: data.vehicles,
-          lights: data.lights
+          lights: data.lights,
         });
         lastRenderTime = now;
       }
@@ -81,9 +83,9 @@ export default function App() {
     setIsSwitching(true);
     try {
       await fetch(`${apiBase}/api/v1/action/${selectedIntersection}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 1 })
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: 1 }),
       });
     } catch (err) {
       console.error("Action failed", err);
@@ -95,18 +97,21 @@ export default function App() {
   // 5. Canvas Renderer
   useEffect(() => {
     if (!canvasRef.current || !canvasData || !networkData) return;
-    const ctx = canvasRef.current.getContext('2d');
+    const ctx = canvasRef.current.getContext("2d");
     const width = canvasRef.current.width;
     const height = canvasRef.current.height;
 
     // Coordinate mapping (Dynamic scale to fit any map)
     const nodesArray = Object.values(networkData.nodes);
-    let minX = 0, maxX = 900, minY = 0, maxY = 700;
+    let minX = 0,
+      maxX = 900,
+      minY = 0,
+      maxY = 700;
     if (nodesArray.length > 0) {
-      minX = Math.min(...nodesArray.map(n => n.x));
-      maxX = Math.max(...nodesArray.map(n => n.x));
-      minY = Math.min(...nodesArray.map(n => n.y));
-      maxY = Math.max(...nodesArray.map(n => n.y));
+      minX = Math.min(...nodesArray.map((n) => n.x));
+      maxX = Math.max(...nodesArray.map((n) => n.x));
+      minY = Math.min(...nodesArray.map((n) => n.y));
+      maxY = Math.max(...nodesArray.map((n) => n.y));
     }
     const mapWidth = maxX - minX || 1;
     const mapHeight = maxY - minY || 1;
@@ -126,11 +131,14 @@ export default function App() {
 
     // Khởi tạo hoặc thay đổi kích thước offscreen canvas đệm nền tĩnh
     if (!offscreenCanvasRef.current) {
-      offscreenCanvasRef.current = document.createElement('canvas');
+      offscreenCanvasRef.current = document.createElement("canvas");
       backgroundNeedsRedraw.current = true;
     }
 
-    if (offscreenCanvasRef.current.width !== width || offscreenCanvasRef.current.height !== height) {
+    if (
+      offscreenCanvasRef.current.width !== width ||
+      offscreenCanvasRef.current.height !== height
+    ) {
       offscreenCanvasRef.current.width = width;
       offscreenCanvasRef.current.height = height;
       backgroundNeedsRedraw.current = true;
@@ -138,14 +146,14 @@ export default function App() {
 
     // Chỉ vẽ lại nền tĩnh (đường sá, dải phân làn, thảm cỏ, vạch kẻ...) khi thực sự cần thiết
     if (backgroundNeedsRedraw.current) {
-      const oCtx = offscreenCanvasRef.current.getContext('2d');
-      
+      const oCtx = offscreenCanvasRef.current.getContext("2d");
+
       // Xoá nền màu Slate-950 tối
-      oCtx.fillStyle = '#020617';
+      oCtx.fillStyle = "#020617";
       oCtx.fillRect(0, 0, width, height);
 
       // Vẽ toàn bộ các tuyến đường (Roads/Edges) lên offscreen canvas
-      networkData.edges.forEach(edge => {
+      networkData.edges.forEach((edge) => {
         const startNode = networkData.nodes[edge.start];
         const endNode = networkData.nodes[edge.end];
         if (!startNode || !endNode) return;
@@ -158,9 +166,9 @@ export default function App() {
         const isMultiLane = edge.lanes > 2;
 
         // 1. Nền nhựa đường tối
-        oCtx.strokeStyle = '#1e293b';
+        oCtx.strokeStyle = "#1e293b";
         oCtx.lineWidth = roadWidth;
-        oCtx.lineCap = 'butt';
+        oCtx.lineCap = "butt";
         oCtx.beginPath();
         oCtx.moveTo(sx, sy);
         oCtx.lineTo(ex, ey);
@@ -174,7 +182,7 @@ export default function App() {
           const ny = -dx / L;
 
           // 2. Lề đường ngoài (vạch liền)
-          oCtx.strokeStyle = '#475569';
+          oCtx.strokeStyle = "#475569";
           oCtx.lineWidth = 1.5;
           oCtx.setLineDash([]);
 
@@ -191,7 +199,7 @@ export default function App() {
           oCtx.stroke();
 
           // 3. Vạch đứt phân làn trong từng chiều
-          oCtx.strokeStyle = '#334155';
+          oCtx.strokeStyle = "#334155";
           oCtx.lineWidth = 1.0;
           oCtx.setLineDash([5, 10]);
 
@@ -218,7 +226,7 @@ export default function App() {
           if (isMultiLane) {
             const barrierWidth = laneWidth * 0.9;
 
-            oCtx.strokeStyle = '#374151';
+            oCtx.strokeStyle = "#374151";
             oCtx.lineWidth = barrierWidth;
             oCtx.setLineDash([]);
             oCtx.beginPath();
@@ -226,7 +234,7 @@ export default function App() {
             oCtx.lineTo(ex, ey);
             oCtx.stroke();
 
-            oCtx.strokeStyle = '#166534';
+            oCtx.strokeStyle = "#166534";
             oCtx.lineWidth = barrierWidth * 0.65;
             oCtx.beginPath();
             oCtx.moveTo(sx, sy);
@@ -234,7 +242,7 @@ export default function App() {
             oCtx.stroke();
 
             const halfB = barrierWidth / 2;
-            oCtx.strokeStyle = '#6b7280';
+            oCtx.strokeStyle = "#6b7280";
             oCtx.lineWidth = 1.0;
             oCtx.beginPath();
             oCtx.moveTo(sx + nx * halfB, sy + ny * halfB);
@@ -245,7 +253,7 @@ export default function App() {
             oCtx.lineTo(ex - nx * halfB, ey - ny * halfB);
             oCtx.stroke();
           } else {
-            oCtx.strokeStyle = '#eab308';
+            oCtx.strokeStyle = "#eab308";
             oCtx.lineWidth = 1.5;
             oCtx.setLineDash([8, 8]);
             oCtx.beginPath();
@@ -262,24 +270,28 @@ export default function App() {
         const cx = mapX(pos.x);
         const cy = mapY(pos.y);
 
-        const connectedEdges = networkData.edges.filter(e =>
-          e.start === Number(nodeId) || e.end === Number(nodeId)
+        const connectedEdges = networkData.edges.filter(
+          (e) => e.start === Number(nodeId) || e.end === Number(nodeId),
         );
-        const maxLanes = connectedEdges.reduce((m, e) => Math.max(m, e.lanes), 1);
+        const maxLanes = connectedEdges.reduce(
+          (m, e) => Math.max(m, e.lanes),
+          1,
+        );
         const R = maxLanes * laneWidth * 1.15;
 
         oCtx.save();
         oCtx.translate(cx, cy);
 
         // Asphalt nền
-        oCtx.fillStyle = '#1e293b';
+        oCtx.fillStyle = "#1e293b";
         oCtx.beginPath();
         oCtx.arc(0, 0, R, 0, Math.PI * 2);
         oCtx.fill();
 
         // Kẻ vạch dừng xe & Zebra crossing
-        connectedEdges.forEach(edge => {
-          const neighborId = edge.start === Number(nodeId) ? edge.end : edge.start;
+        connectedEdges.forEach((edge) => {
+          const neighborId =
+            edge.start === Number(nodeId) ? edge.end : edge.start;
           const neighbor = networkData.nodes[neighborId];
           if (!neighbor) return;
 
@@ -294,12 +306,18 @@ export default function App() {
 
           const rHW = edge.lanes * laneWidth;
           const stopDist = R + 1.5;
-          oCtx.strokeStyle = 'rgba(255,255,255,0.85)';
+          oCtx.strokeStyle = "rgba(255,255,255,0.85)";
           oCtx.lineWidth = 2.0;
           oCtx.setLineDash([]);
           oCtx.beginPath();
-          oCtx.moveTo(ux * stopDist + px * rHW * 0.95, uy * stopDist + py * rHW * 0.95);
-          oCtx.lineTo(ux * stopDist - px * rHW * 0.95, uy * stopDist - py * rHW * 0.95);
+          oCtx.moveTo(
+            ux * stopDist + px * rHW * 0.95,
+            uy * stopDist + py * rHW * 0.95,
+          );
+          oCtx.lineTo(
+            ux * stopDist - px * rHW * 0.95,
+            uy * stopDist - py * rHW * 0.95,
+          );
           oCtx.stroke();
 
           if (edge.lanes >= 2) {
@@ -308,7 +326,7 @@ export default function App() {
             const numStripes = edge.lanes + 1;
             const halfSpan = rHW * 0.88;
 
-            oCtx.fillStyle = 'rgba(255,255,255,0.13)';
+            oCtx.fillStyle = "rgba(255,255,255,0.13)";
             for (let s = 0; s < numStripes; s++) {
               if (s % 2 === 0) continue;
               const t0 = (s / numStripes) * 2 * halfSpan - halfSpan;
@@ -325,17 +343,24 @@ export default function App() {
         });
 
         // Specular highlight nhựa ướt
-        const specGrad = oCtx.createRadialGradient(-R * 0.2, -R * 0.2, 0, 0, 0, R);
-        specGrad.addColorStop(0, 'rgba(100,116,139,0.28)');
-        specGrad.addColorStop(0.5, 'rgba(51,65,85,0.10)');
-        specGrad.addColorStop(1, 'rgba(15,23,42,0)');
+        const specGrad = oCtx.createRadialGradient(
+          -R * 0.2,
+          -R * 0.2,
+          0,
+          0,
+          0,
+          R,
+        );
+        specGrad.addColorStop(0, "rgba(100,116,139,0.28)");
+        specGrad.addColorStop(0.5, "rgba(51,65,85,0.10)");
+        specGrad.addColorStop(1, "rgba(15,23,42,0)");
         oCtx.fillStyle = specGrad;
         oCtx.beginPath();
         oCtx.arc(0, 0, R, 0, Math.PI * 2);
         oCtx.fill();
 
         // Viền kerb
-        oCtx.strokeStyle = 'rgba(71,85,105,0.6)';
+        oCtx.strokeStyle = "rgba(71,85,105,0.6)";
         oCtx.lineWidth = 0.8;
         oCtx.setLineDash([]);
         oCtx.beginPath();
@@ -343,17 +368,17 @@ export default function App() {
         oCtx.stroke();
 
         // Chấm tâm node marker
-        oCtx.fillStyle = 'rgba(100,116,139,0.5)';
+        oCtx.fillStyle = "rgba(100,116,139,0.5)";
         oCtx.beginPath();
         oCtx.arc(0, 0, 2.2, 0, Math.PI * 2);
         oCtx.fill();
 
         // Label số nút giao
         const fontSize = Math.max(7, laneWidth * 0.6);
-        oCtx.fillStyle = 'rgba(148,163,184,0.55)';
+        oCtx.fillStyle = "rgba(148,163,184,0.55)";
         oCtx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
-        oCtx.textAlign = 'center';
-        oCtx.textBaseline = 'middle';
+        oCtx.textAlign = "center";
+        oCtx.textBaseline = "middle";
         oCtx.fillText(nodeId, R * 0.52, -R * 0.58);
 
         oCtx.restore();
@@ -370,8 +395,9 @@ export default function App() {
     if (activeNode) {
       const cx = mapX(activeNode.x);
       const cy = mapY(activeNode.y);
-      const connectedEdges = networkData.edges.filter(e =>
-        e.start === selectedIntersection || e.end === selectedIntersection
+      const connectedEdges = networkData.edges.filter(
+        (e) =>
+          e.start === selectedIntersection || e.end === selectedIntersection,
       );
       const maxLanes = connectedEdges.reduce((m, e) => Math.max(m, e.lanes), 1);
       const R = maxLanes * laneWidth * 1.15;
@@ -385,15 +411,15 @@ export default function App() {
       ctx.strokeStyle = `rgba(56,189,248,${0.45 + pulse * 0.5})`;
       ctx.lineWidth = 1.8 + pulse * 1.8;
       ctx.shadowBlur = 16 + pulse * 12;
-      ctx.shadowColor = '#38bdf8';
+      ctx.shadowColor = "#38bdf8";
       ctx.beginPath();
       ctx.arc(0, 0, R + 5 + pulse * 5, 0, Math.PI * 2);
       ctx.stroke();
       ctx.shadowBlur = 0;
 
       const hlGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, R * 0.85);
-      hlGrad.addColorStop(0, `rgba(56,189,248,${0.10 + pulse * 0.08})`);
-      hlGrad.addColorStop(1, 'rgba(56,189,248,0)');
+      hlGrad.addColorStop(0, `rgba(56,189,248,${0.1 + pulse * 0.08})`);
+      hlGrad.addColorStop(1, "rgba(56,189,248,0)");
       ctx.fillStyle = hlGrad;
       ctx.beginPath();
       ctx.arc(0, 0, R * 0.85, 0, Math.PI * 2);
@@ -403,7 +429,7 @@ export default function App() {
     }
 
     // BƯỚC 3: Vẽ Đèn tín hiệu giao thông (Traffic Lights) - cập nhật động mỗi frame
-    canvasData.lights?.forEach(light => {
+    canvasData.lights?.forEach((light) => {
       const node = networkData.nodes[light.intersection];
       const incomingNode = networkData.nodes[light.incoming];
       if (!node || !incomingNode) return;
@@ -422,9 +448,10 @@ export default function App() {
         const nx = uy;
         const ny = -ux;
 
-        const edge = networkData.edges.find(e =>
-          (e.start === light.intersection && e.end === light.incoming) ||
-          (e.start === light.incoming && e.end === light.intersection)
+        const edge = networkData.edges.find(
+          (e) =>
+            (e.start === light.intersection && e.end === light.incoming) ||
+            (e.start === light.incoming && e.end === light.intersection),
         );
         const lanes = edge ? edge.lanes : 1;
         const stopLineDistance = 3 * laneWidth + 12 * carScale;
@@ -434,9 +461,9 @@ export default function App() {
         const iy = y - uy * stopLineDistance + ny * sideOffset;
         const lightAngle = Math.atan2(-dy, -dx);
 
-        const dimRed = '#3b0f0f';
-        const dimYellow = '#3b2a06';
-        const dimGreen = '#062a16';
+        const dimRed = "#3b0f0f";
+        const dimYellow = "#3b2a06";
+        const dimGreen = "#062a16";
 
         ctx.save();
         ctx.translate(ix, iy);
@@ -444,26 +471,27 @@ export default function App() {
         ctx.scale(carScale, carScale);
 
         // Cột đèn
-        ctx.fillStyle = '#374151';
+        ctx.fillStyle = "#374151";
         ctx.fillRect(-1.5, 5, 3, 14);
-        ctx.fillStyle = '#4b5563';
+        ctx.fillStyle = "#4b5563";
         ctx.beginPath();
         ctx.roundRect(-3, 17, 6, 2, 1);
         ctx.fill();
 
         // Hộp đèn bo góc
-        const bW = 9, bH = 22;
-        ctx.fillStyle = '#111827';
+        const bW = 9,
+          bH = 22;
+        ctx.fillStyle = "#111827";
         ctx.shadowBlur = 0;
         ctx.beginPath();
         ctx.roundRect(-bW / 2, -bH / 2, bW, bH, 2.5);
         ctx.fill();
 
-        ctx.strokeStyle = '#6b7280';
+        ctx.strokeStyle = "#6b7280";
         ctx.lineWidth = 1.0;
         ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(156,163,175,0.4)';
+        ctx.strokeStyle = "rgba(156,163,175,0.4)";
         ctx.lineWidth = 0.7;
         ctx.beginPath();
         ctx.moveTo(-bW / 2 + 1, -bH / 2 + 1);
@@ -473,15 +501,28 @@ export default function App() {
         // 3 Bóng đèn
         const bulbR = 2.8;
         const positions = [
-          { yPos: -bH / 2 + bulbR + 1.5, color: light.color === 'RED' ? '#ef4444' : dimRed, glow: '#ef4444' },
-          { yPos: 0, color: light.color === 'YELLOW' ? '#f59e0b' : dimYellow, glow: '#f59e0b' },
-          { yPos: bH / 2 - bulbR - 1.5, color: light.color === 'GREEN' ? '#22c55e' : dimGreen, glow: '#22c55e' },
+          {
+            yPos: -bH / 2 + bulbR + 1.5,
+            color: light.color === "RED" ? "#ef4444" : dimRed,
+            glow: "#ef4444",
+          },
+          {
+            yPos: 0,
+            color: light.color === "YELLOW" ? "#f59e0b" : dimYellow,
+            glow: "#f59e0b",
+          },
+          {
+            yPos: bH / 2 - bulbR - 1.5,
+            color: light.color === "GREEN" ? "#22c55e" : dimGreen,
+            glow: "#22c55e",
+          },
         ];
 
         positions.forEach(({ yPos, color, glow }) => {
-          const isActive = color !== dimRed && color !== dimYellow && color !== dimGreen;
+          const isActive =
+            color !== dimRed && color !== dimYellow && color !== dimGreen;
 
-          ctx.fillStyle = '#0a0f1a';
+          ctx.fillStyle = "#0a0f1a";
           ctx.beginPath();
           ctx.arc(0, yPos, bulbR + 0.8, 0, Math.PI * 2);
           ctx.fill();
@@ -499,14 +540,24 @@ export default function App() {
           ctx.shadowBlur = 0;
 
           if (isActive) {
-            ctx.fillStyle = 'rgba(255,255,255,0.4)';
+            ctx.fillStyle = "rgba(255,255,255,0.4)";
             ctx.beginPath();
             ctx.arc(-0.8, yPos - 1.1, 0.9, 0, Math.PI * 2);
             ctx.fill();
 
-            const glowGrad = ctx.createRadialGradient(0, yPos, bulbR, 0, yPos, bulbR * 2.5);
-            glowGrad.addColorStop(0, glow.replace(')', ',0.25)').replace('rgb', 'rgba'));
-            glowGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            const glowGrad = ctx.createRadialGradient(
+              0,
+              yPos,
+              bulbR,
+              0,
+              yPos,
+              bulbR * 2.5,
+            );
+            glowGrad.addColorStop(
+              0,
+              glow.replace(")", ",0.25)").replace("rgb", "rgba"),
+            );
+            glowGrad.addColorStop(1, "rgba(0,0,0,0)");
             ctx.fillStyle = glowGrad;
             ctx.beginPath();
             ctx.arc(0, yPos, bulbR * 2.5, 0, Math.PI * 2);
@@ -519,7 +570,7 @@ export default function App() {
     });
 
     // BƯỚC 4: Vẽ Xe cộ (Vehicles) - cập nhật động mỗi frame
-    canvasData.vehicles.forEach(v => {
+    canvasData.vehicles.forEach((v) => {
       const x = mapX(v.x);
       const y = mapY(v.y);
       const angle = v.angle || 0;
@@ -529,26 +580,26 @@ export default function App() {
       ctx.rotate(angle);
       ctx.scale(carScale, carScale);
 
-      if (v.type === 'motorcycle') {
-        ctx.fillStyle = '#1e293b';
+      if (v.type === "motorcycle") {
+        ctx.fillStyle = "#1e293b";
         ctx.beginPath();
         ctx.ellipse(-3.8, 0, 1.6, 1.0, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#475569';
+        ctx.fillStyle = "#475569";
         ctx.beginPath();
         ctx.ellipse(-3.8, 0, 1.0, 0.6, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = '#1e293b';
+        ctx.fillStyle = "#1e293b";
         ctx.beginPath();
         ctx.ellipse(3.6, 0, 1.4, 0.85, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#475569';
+        ctx.fillStyle = "#475569";
         ctx.beginPath();
         ctx.ellipse(3.6, 0, 0.85, 0.5, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.strokeStyle = '#64748b';
+        ctx.strokeStyle = "#64748b";
         ctx.lineWidth = 0.7;
         ctx.beginPath();
         ctx.moveTo(-2.8, 0);
@@ -556,107 +607,112 @@ export default function App() {
         ctx.stroke();
 
         ctx.shadowBlur = 6;
-        ctx.shadowColor = '#38bdf8';
-        ctx.fillStyle = '#0ea5e9';
+        ctx.shadowColor = "#38bdf8";
+        ctx.fillStyle = "#0ea5e9";
         ctx.beginPath();
         ctx.roundRect(-2.6, -1.1, 4.5, 2.2, 1.0);
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        ctx.fillStyle = 'rgba(186,230,253,0.5)';
+        ctx.fillStyle = "rgba(186,230,253,0.5)";
         ctx.beginPath();
         ctx.roundRect(-2.4, -0.35, 4.0, 0.7, 0.3);
         ctx.fill();
 
-        ctx.fillStyle = '#0369a1';
+        ctx.fillStyle = "#0369a1";
         ctx.beginPath();
         ctx.roundRect(1.5, -0.9, 1.5, 1.8, 0.4);
         ctx.fill();
 
-        ctx.strokeStyle = '#94a3b8';
+        ctx.strokeStyle = "#94a3b8";
         ctx.lineWidth = 0.8;
         ctx.beginPath();
         ctx.moveTo(2.2, -1.5);
         ctx.lineTo(2.2, 1.5);
         ctx.stroke();
 
-        ctx.fillStyle = '#f1f5f9';
+        ctx.fillStyle = "#f1f5f9";
         ctx.beginPath();
         ctx.ellipse(-0.6, 0, 1.05, 0.75, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = '#f97316';
+        ctx.fillStyle = "#f97316";
         ctx.shadowBlur = 3;
-        ctx.shadowColor = '#f97316';
+        ctx.shadowColor = "#f97316";
         ctx.beginPath();
         ctx.arc(-0.6, 0, 0.75, Math.PI, 0);
         ctx.fill();
         ctx.shadowBlur = 0;
 
-        ctx.fillStyle = 'rgba(186,230,253,0.6)';
+        ctx.fillStyle = "rgba(186,230,253,0.6)";
         ctx.beginPath();
         ctx.roundRect(-1.0, -0.15, 0.8, 0.3, 0.15);
         ctx.fill();
-
-      } else if (v.type === 'bus') {
-        ctx.fillStyle = '#0f172a';
+      } else if (v.type === "bus") {
+        ctx.fillStyle = "#0f172a";
         ctx.fillRect(4, 3.5, 3, 1);
         ctx.fillRect(4, -4.5, 3, 1);
         ctx.fillRect(-6, 3.5, 3, 1);
         ctx.fillRect(-6, -4.5, 3, 1);
 
-        ctx.fillStyle = '#f97316';
+        ctx.fillStyle = "#f97316";
         ctx.shadowBlur = 6;
-        ctx.shadowColor = '#f97316';
+        ctx.shadowColor = "#f97316";
         ctx.beginPath();
         ctx.roundRect(-9, -3.5, 18, 7, 2);
         ctx.fill();
 
-        ctx.fillStyle = '#0b1329';
+        ctx.fillStyle = "#0b1329";
         ctx.shadowBlur = 0;
         ctx.fillRect(6.5, -3, 1.5, 6);
 
-        ctx.fillStyle = '#1e293b';
+        ctx.fillStyle = "#1e293b";
         for (let offset = -7; offset <= 3; offset += 3.5) {
           ctx.fillRect(offset, -3.2, 2, 0.6);
           ctx.fillRect(offset, 2.6, 2, 0.6);
         }
       } else {
-        ctx.fillStyle = '#0f172a';
+        ctx.fillStyle = "#0f172a";
         ctx.fillRect(2.2, 2.3, 2, 1);
         ctx.fillRect(2, -3.3, 2, 1);
         ctx.fillRect(-4.2, 2.3, 2, 1);
         ctx.fillRect(-4.2, -3.3, 2, 1);
 
-        ctx.fillStyle = '#a78bfa';
+        ctx.fillStyle = "#a78bfa";
         ctx.shadowBlur = 5;
-        ctx.shadowColor = '#a78bfa';
+        ctx.shadowColor = "#a78bfa";
         ctx.beginPath();
         ctx.roundRect(-5.5, -2.5, 11, 5, 1.5);
         ctx.fill();
 
-        ctx.fillStyle = '#0b1329';
+        ctx.fillStyle = "#0b1329";
         ctx.shadowBlur = 0;
         ctx.fillRect(1.5, -2, 1.2, 4);
         ctx.fillRect(-4, -2, 0.8, 4);
 
-        ctx.fillStyle = '#c084fc';
+        ctx.fillStyle = "#c084fc";
         ctx.fillRect(-2.8, -1.8, 3.8, 3.6);
       }
       ctx.restore();
     });
   }, [canvasData, networkData, selectedIntersection]);
 
-  const selectedMetrics = metrics?.metrics?.intersections?.[selectedIntersection];
-  const totalQueue = selectedMetrics && selectedMetrics.directions
-    ? Object.values(selectedMetrics.directions).reduce((acc, curr) => acc + curr.queue_length, 0)
-    : 0;
-  const selectedAverageSpeed = selectedMetrics && selectedMetrics.directions
-    ? (
-      Object.values(selectedMetrics.directions).reduce((acc, curr) => acc + curr.avg_speed, 0) /
-      Math.max(Object.values(selectedMetrics.directions).length, 1)
-    )
-    : 0;
+  const selectedMetrics =
+    metrics?.metrics?.intersections?.[selectedIntersection];
+  const totalQueue =
+    selectedMetrics && selectedMetrics.directions
+      ? Object.values(selectedMetrics.directions).reduce(
+          (acc, curr) => acc + curr.queue_length,
+          0,
+        )
+      : 0;
+  const selectedAverageSpeed =
+    selectedMetrics && selectedMetrics.directions
+      ? Object.values(selectedMetrics.directions).reduce(
+          (acc, curr) => acc + curr.avg_speed,
+          0,
+        ) / Math.max(Object.values(selectedMetrics.directions).length, 1)
+      : 0;
   const globalImbalance = metrics?.metrics?.global_imbalance ?? 0;
   const availableNodes = networkData ? Object.keys(networkData.nodes) : [];
 
@@ -675,7 +731,7 @@ export default function App() {
         <header className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/35 shadow-lg backdrop-blur-xl transition-all duration-500 hover:border-cyan-500/20 select-none">
           {/* Viền gradient trên cùng của Header */}
           <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-500/50 to-fuchsia-500/30" />
-          
+
           <div className="flex flex-col gap-4 px-4 py-2 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
             {/* Cột trái: Logo, Tiêu đề và Chỉ báo Online */}
             <div className="flex items-center gap-3">
@@ -692,7 +748,9 @@ export default function App() {
                     LIVE
                   </span>
                 </div>
-                <p className="text-[8px] font-semibold text-slate-500 uppercase tracking-widest mt-0.5">RL Control Hub</p>
+                <p className="text-[8px] font-semibold text-slate-500 uppercase tracking-widest mt-0.5">
+                  RL Control Hub
+                </p>
               </div>
             </div>
 
@@ -701,8 +759,12 @@ export default function App() {
               {/* Card 1: Global Reward */}
               <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-slate-950/20 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-cyan-500/20">
                 <div>
-                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">Global Reward</div>
-                  <div className={`mt-0.5 text-sm font-bold ${(metrics?.global_reward ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">
+                    Global Reward
+                  </div>
+                  <div
+                    className={`mt-0.5 text-sm font-bold ${(metrics?.global_reward ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                  >
                     {(metrics?.global_reward ?? 0).toFixed(2)}
                   </div>
                 </div>
@@ -712,15 +774,21 @@ export default function App() {
               {/* Card 2: Global Queue */}
               <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-slate-950/20 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-rose-500/20">
                 <div>
-                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">Global Queue</div>
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">
+                    Global Queue
+                  </div>
                   <div className="mt-0.5 text-sm font-bold text-rose-400">
                     {metrics?.metrics?.intersections
                       ? Object.values(metrics.metrics.intersections).reduce(
-                        (sumInter, inter) => sumInter + Object.values(inter.directions).reduce((sumDir, dir) => sumDir + dir.queue_length, 0),
-                        0
-                      )
-                      : 0
-                    }
+                          (sumInter, inter) =>
+                            sumInter +
+                            Object.values(inter.directions).reduce(
+                              (sumDir, dir) => sumDir + dir.queue_length,
+                              0,
+                            ),
+                          0,
+                        )
+                      : 0}
                   </div>
                 </div>
                 <TriangleAlert className="h-3.5 w-3.5 text-rose-400/70" />
@@ -729,13 +797,22 @@ export default function App() {
               {/* Card 3: Active Vehicles */}
               <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-slate-950/20 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-violet-500/20">
                 <div>
-                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">Active Vehicles</div>
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">
+                    Active Vehicles
+                  </div>
                   <div className="mt-0.5 flex items-baseline gap-1.5">
                     <span className="text-sm font-bold text-violet-300">
                       {metrics?.vehicles?.length ?? 0}
                     </span>
                     <span className="text-[8px] text-slate-500 font-semibold tracking-normal">
-                      ({metrics?.vehicles.filter(v => v.type === 'car' || v.type === 'bus').length || 0}C · {metrics?.vehicles.filter(v => v.type === 'motorcycle').length || 0}M)
+                      (
+                      {metrics?.vehicles.filter(
+                        (v) => v.type === "car" || v.type === "bus",
+                      ).length || 0}
+                      C ·{" "}
+                      {metrics?.vehicles.filter((v) => v.type === "motorcycle")
+                        .length || 0}
+                      M)
                     </span>
                   </div>
                 </div>
@@ -745,7 +822,9 @@ export default function App() {
               {/* Card 4: Global Imbalance */}
               <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-slate-950/20 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-amber-500/20">
                 <div>
-                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">Global Imbalance</div>
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">
+                    Global Imbalance
+                  </div>
                   <div className="mt-0.5 text-sm font-bold text-amber-400">
                     {globalImbalance.toFixed(1)}
                   </div>
@@ -755,7 +834,6 @@ export default function App() {
             </div>
           </div>
         </header>
-
 
         <div className="grid grid-cols-12 gap-6">
           <main className="col-span-12 xl:col-span-8">
@@ -836,7 +914,9 @@ export default function App() {
                   <select
                     className="w-full rounded-2xl border border-white/10 bg-[#0b1220] px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20"
                     value={selectedIntersection}
-                    onChange={(e) => setSelectedIntersection(Number(e.target.value))}
+                    onChange={(e) =>
+                      setSelectedIntersection(Number(e.target.value))
+                    }
                   >
                     {availableNodes.map((nodeId) => (
                       <option key={nodeId} value={nodeId}>
@@ -848,16 +928,16 @@ export default function App() {
                   <button
                     onClick={handleForceSwitch}
                     disabled={isSwitching}
-                    className={`relative mt-4 inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-300 ${isSwitching
-                        ? 'cursor-not-allowed border border-white/10 bg-white/5 text-slate-500'
-                        : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 text-slate-950 shadow-[0_4px_20px_rgba(6,182,212,0.25)] hover:-translate-y-0.5 hover:shadow-[0_6px_25px_rgba(6,182,212,0.35)] hover:scale-[1.01] active:scale-[0.99]'
-                      }`}
+                    className={`relative mt-4 inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-300 ${
+                      isSwitching
+                        ? "cursor-not-allowed border border-white/10 bg-white/5 text-slate-500"
+                        : "bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 text-slate-950 shadow-[0_4px_20px_rgba(6,182,212,0.25)] hover:-translate-y-0.5 hover:shadow-[0_6px_25px_rgba(6,182,212,0.35)] hover:scale-[1.01] active:scale-[0.99]"
+                    }`}
                   >
-                    {isSwitching ? 'Switching Phase...' : 'Force Phase Switch'}
+                    {isSwitching ? "Switching Phase..." : "Force Phase Switch"}
                     <ArrowUpRight className="h-4 w-4" />
                   </button>
                 </div>
-
 
                 <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
                   <div className="flex items-center justify-between">
@@ -876,41 +956,53 @@ export default function App() {
 
                   <div className="mt-4 grid gap-2.5 rounded-2xl border border-white/5 bg-slate-900/20 p-2.5">
                     {selectedMetrics && selectedMetrics.directions ? (
-                      Object.entries(selectedMetrics.directions).map(([incomingId, metrics]) => {
-                        const maxQueueForBar = 15;
-                        const percent = Math.min((metrics.queue_length / maxQueueForBar) * 100, 100);
-                        return (
-                          <div
-                            key={incomingId}
-                            className="flex flex-col gap-2 rounded-xl border border-white/5 bg-slate-900/40 px-3 py-2.5"
-                          >
-                            <div className="flex items-center justify-between text-xs">
-                              <div>
-                                <span className="font-semibold text-slate-200">Node #{incomingId}</span>
-                                <span className="ml-2 text-[10px] text-slate-500">
-                                  {metrics.avg_speed.toFixed(1)} m/s
+                      Object.entries(selectedMetrics.directions).map(
+                        ([incomingId, metrics]) => {
+                          const maxQueueForBar = 15;
+                          const percent = Math.min(
+                            (metrics.queue_length / maxQueueForBar) * 100,
+                            100,
+                          );
+                          return (
+                            <div
+                              key={incomingId}
+                              className="flex flex-col gap-2 rounded-xl border border-white/5 bg-slate-900/40 px-3 py-2.5"
+                            >
+                              <div className="flex items-center justify-between text-xs">
+                                <div>
+                                  <span className="font-semibold text-slate-200">
+                                    Node #{incomingId}
+                                  </span>
+                                  <span className="ml-2 text-[10px] text-slate-500">
+                                    {metrics.avg_speed.toFixed(1)} m/s
+                                  </span>
+                                </div>
+                                <span
+                                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${metrics.queue_length > 5 ? "bg-rose-500/20 text-rose-300" : "bg-slate-800 text-slate-300"}`}
+                                >
+                                  Queue: {metrics.queue_length}
                                 </span>
                               </div>
-                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${metrics.queue_length > 5 ? 'bg-rose-500/20 text-rose-300' : 'bg-slate-800 text-slate-300'}`}>
-                                Queue: {metrics.queue_length}
-                              </span>
-                            </div>
-                            <div className="h-1.5 w-full rounded-full bg-slate-950/60 overflow-hidden">
-                              <div
-                                className={`h-full rounded-full transition-all duration-500 ${metrics.queue_length > 8
-                                    ? 'bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_8px_rgba(244,63,94,0.4)]'
-                                    : metrics.queue_length > 3
-                                      ? 'bg-gradient-to-r from-amber-400 to-orange-500'
-                                      : 'bg-gradient-to-r from-cyan-400 to-emerald-400'
+                              <div className="h-1.5 w-full rounded-full bg-slate-950/60 overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all duration-500 ${
+                                    metrics.queue_length > 8
+                                      ? "bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_8px_rgba(244,63,94,0.4)]"
+                                      : metrics.queue_length > 3
+                                        ? "bg-gradient-to-r from-amber-400 to-orange-500"
+                                        : "bg-gradient-to-r from-cyan-400 to-emerald-400"
                                   }`}
-                                style={{ width: `${percent}%` }}
-                              />
+                                  style={{ width: `${percent}%` }}
+                                />
+                              </div>
                             </div>
-                          </div>
-                        );
-                      })
+                          );
+                        },
+                      )
                     ) : (
-                      <div className="text-xs text-slate-500 text-center py-2">No metrics available yet.</div>
+                      <div className="text-xs text-slate-500 text-center py-2">
+                        No metrics available yet.
+                      </div>
                     )}
                   </div>
                 </div>
@@ -921,11 +1013,17 @@ export default function App() {
                     <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
                       RL Diagnostics
                     </div>
-                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${(rewardMetrics?.reward ?? 0) >= 0
-                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
-                        : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                      }`}>
-                      Reward: {rewardMetrics?.reward !== undefined ? rewardMetrics.reward.toFixed(2) : '0.00'}
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                        (rewardMetrics?.reward ?? 0) >= 0
+                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                          : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                      }`}
+                    >
+                      Reward:{" "}
+                      {rewardMetrics?.reward !== undefined
+                        ? rewardMetrics.reward.toFixed(2)
+                        : "0.00"}
                     </span>
                   </div>
 
@@ -934,12 +1032,20 @@ export default function App() {
                     <div className="space-y-1">
                       <div className="flex justify-between text-[11px]">
                         <span className="text-slate-400">Queue Penalty</span>
-                        <span className="font-semibold text-rose-300">-{((rewardMetrics?.queue_length ?? 0) * 2.2 / 12.0).toFixed(2)}</span>
+                        <span className="font-semibold text-rose-300">
+                          -
+                          {(
+                            ((rewardMetrics?.queue_length ?? 0) * 2.2) /
+                            12.0
+                          ).toFixed(2)}
+                        </span>
                       </div>
                       <div className="h-1 w-full rounded-full bg-slate-900 overflow-hidden">
                         <div
                           className="h-full bg-rose-500 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(((rewardMetrics?.queue_length ?? 0) / 12.0) * 100, 100)}%` }}
+                          style={{
+                            width: `${Math.min(((rewardMetrics?.queue_length ?? 0) / 12.0) * 100, 100)}%`,
+                          }}
                         />
                       </div>
                     </div>
@@ -947,13 +1053,23 @@ export default function App() {
                     {/* Imbalance Penalty */}
                     <div className="space-y-1">
                       <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-400">Imbalance Penalty</span>
-                        <span className="font-semibold text-amber-300">-{((rewardMetrics?.imbalance ?? 0) * 1.2 / 10.0).toFixed(2)}</span>
+                        <span className="text-slate-400">
+                          Imbalance Penalty
+                        </span>
+                        <span className="font-semibold text-amber-300">
+                          -
+                          {(
+                            ((rewardMetrics?.imbalance ?? 0) * 1.2) /
+                            10.0
+                          ).toFixed(2)}
+                        </span>
                       </div>
                       <div className="h-1 w-full rounded-full bg-slate-900 overflow-hidden">
                         <div
                           className="h-full bg-amber-500 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(((rewardMetrics?.imbalance ?? 0) / 10.0) * 100, 100)}%` }}
+                          style={{
+                            width: `${Math.min(((rewardMetrics?.imbalance ?? 0) / 10.0) * 100, 100)}%`,
+                          }}
                         />
                       </div>
                     </div>
@@ -961,13 +1077,23 @@ export default function App() {
                     {/* Red Pressure Penalty */}
                     <div className="space-y-1">
                       <div className="flex justify-between text-[11px]">
-                        <span className="text-slate-400">Red Pressure Penalty</span>
-                        <span className="font-semibold text-orange-300">-{((rewardMetrics?.red_pressure ?? 0) * 0.6 / 10.0).toFixed(2)}</span>
+                        <span className="text-slate-400">
+                          Red Pressure Penalty
+                        </span>
+                        <span className="font-semibold text-orange-300">
+                          -
+                          {(
+                            ((rewardMetrics?.red_pressure ?? 0) * 0.6) /
+                            10.0
+                          ).toFixed(2)}
+                        </span>
                       </div>
                       <div className="h-1 w-full rounded-full bg-slate-900 overflow-hidden">
                         <div
                           className="h-full bg-orange-500 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(((rewardMetrics?.red_pressure ?? 0) / 10.0) * 100, 100)}%` }}
+                          style={{
+                            width: `${Math.min(((rewardMetrics?.red_pressure ?? 0) / 10.0) * 100, 100)}%`,
+                          }}
                         />
                       </div>
                     </div>
@@ -976,22 +1102,26 @@ export default function App() {
                     <div className="space-y-1">
                       <div className="flex justify-between text-[11px]">
                         <span className="text-slate-400">Avg Speed Bonus</span>
-                        <span className="font-semibold text-emerald-400">+{rewardMetrics?.speed_bonus !== undefined ? rewardMetrics.speed_bonus.toFixed(2) : '0.00'}</span>
+                        <span className="font-semibold text-emerald-400">
+                          +
+                          {rewardMetrics?.speed_bonus !== undefined
+                            ? rewardMetrics.speed_bonus.toFixed(2)
+                            : "0.00"}
+                        </span>
                       </div>
                       <div className="h-1 w-full rounded-full bg-slate-900 overflow-hidden">
                         <div
                           className="h-full bg-emerald-400 rounded-full transition-all duration-300"
-                          style={{ width: `${Math.min(((rewardMetrics?.speed_avg ?? 0) / 18.0) * 100, 100)}%` }}
+                          style={{
+                            width: `${Math.min(((rewardMetrics?.speed_avg ?? 0) / 18.0) * 100, 100)}%`,
+                          }}
                         />
                       </div>
                     </div>
                   </div>
                 </div>
-
               </div>
             </section>
-
-
           </aside>
         </div>
       </div>

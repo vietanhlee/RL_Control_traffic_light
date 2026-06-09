@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "RL model"))
 
-from traffic_rl.agent import LinearQAgent
+from traffic_rl.agent import QMIXAgent
 from traffic_rl.features import build_features
 
 
@@ -37,13 +37,36 @@ def test_feature_vector_has_stable_size():
     assert features[0] == 1.0
 
 
-def test_agent_update_changes_weights():
-    agent = LinearQAgent(feature_size=8, learning_rate=0.1, gamma=0.9, epsilon=0.0)
-    state = [1.0, 0.2, 0.0, 0.5, 0.1, 0.0, 0.0, 1.0]
-    next_state = [1.0, 0.1, 0.1, 0.3, 0.0, 0.0, 0.0, 1.0]
+def test_qmix_agent_selects_actions_and_persists(tmp_path):
+    agent = QMIXAgent(
+        n_agents=2,
+        obs_dim=8,
+        learning_rate=0.1,
+        gamma=0.9,
+        epsilon=0.0,
+        batch_size=2,
+        buffer_capacity=8,
+        target_update_freq=1,
+        seed=7,
+    )
 
-    before = agent.q_values(state)
-    agent.update(state, 1, reward=-2.0, next_features=next_state)
-    after = agent.q_values(state)
+    observations = {
+        1: [1.0, 0.2, 0.0, 0.5, 0.1, 0.0, 0.0, 1.0],
+        2: [1.0, 0.1, 0.1, 0.3, 0.0, 0.0, 0.0, 1.0],
+    }
+    actions = agent.select_actions(observations, agent_ids=[1, 2], explore=False)
 
-    assert before != after
+    assert set(actions) == {1, 2}
+    assert all(action in (0, 1) for action in actions.values())
+
+    model_path = tmp_path / "qmix_agent.pth"
+    agent.save(model_path)
+
+    loaded = QMIXAgent.load(
+        model_path,
+        default_n_agents=2,
+        default_obs_dim=8,
+    )
+
+    assert loaded.n_agents == 2
+    assert loaded.obs_dim == 8

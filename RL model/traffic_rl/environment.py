@@ -268,10 +268,11 @@ class TrafficEnvironment:
         Args:
             actions: Dict mapping intersection_id → action (0 hoặc 1).
         """
-        for intersection_id, action in actions.items():
-            if action not in (0, 1):
-                continue
-            self.client.post_action(intersection_id, action)
+        filtered_actions = {intersection_id: action for intersection_id, action in actions.items() if action in (0, 1)}
+        if filtered_actions:
+            self.client.post_actions(filtered_actions)
+
+        for intersection_id, action in filtered_actions.items():
             record = self.records.setdefault(intersection_id, IntersectionRecord())
             if action == 1:
                 record.last_switch_step = record.steps_since_switch

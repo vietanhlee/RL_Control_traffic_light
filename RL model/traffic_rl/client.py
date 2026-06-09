@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import socket
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -13,8 +14,9 @@ class ApiError(RuntimeError):
 
 @dataclass
 class TrafficApiClient:
-    base_url: str = "http://127.0.0.1:8000"
-    timeout_seconds: float = 5.0
+    base_url: str = "http://127.0.0.1:8011"
+    timeout_seconds: float = 50.0
+    max_retries: int = 2
 
     def _url(self, path: str) -> str:
         return f"{self.base_url.rstrip('/')}/{path.lstrip('/')}"
@@ -27,17 +29,26 @@ class TrafficApiClient:
             headers["Content-Type"] = "application/json"
 
         req = Request(self._url(path), data=body, headers=headers, method=method.upper())
-        try:
-            with urlopen(req, timeout=self.timeout_seconds) as response:
-                raw = response.read().decode("utf-8")
-        except HTTPError as exc:
-            raise ApiError(f"{method} {path} failed with HTTP {exc.code}") from exc
-        except URLError as exc:
-            raise ApiError(f"Cannot connect to backend at {self.base_url}: {exc.reason}") from exc
+        last_error: Exception | None = None
 
-        if not raw:
-            return {}
-        return json.loads(raw)
+        for attempt in range(self.max_retries + 1):
+            try:
+                with urlopen(req, timeout=self.timeout_seconds) as response:
+                    raw = response.read().decode("utf-8")
+                if not raw:
+                    return {}
+                return json.loads(raw)
+            except HTTPError as exc:
+                raise ApiError(f"{method} {path} failed with HTTP {exc.code}") from exc
+            except (URLError, TimeoutError, socket.timeout) as exc:
+                last_error = exc
+                if attempt < self.max_retries:
+                    continue
+                raise ApiError(f"Cannot connect to backend at {self.base_url}: {exc}") from exc
+
+        if last_error is not None:
+            raise ApiError(f"Cannot connect to backend at {self.base_url}: {last_error}") from last_error
+        return {}
 
     def get_network(self) -> dict[str, Any]:
         return self.request_json("GET", "/api/v1/network")
@@ -51,6 +62,9 @@ class TrafficApiClient:
     def post_action(self, intersection_id: int, action: int) -> dict[str, Any]:
         return self.request_json("POST", f"/api/v1/action/{intersection_id}", {"action": int(action)})
 
+    def post_actions(self, actions: dict[int, int]) -> dict[str, Any]:
+        payload = {"actions": {str(intersection_id): int(action) for intersection_id, action in actions.items()}}
+        return self.request_json("POST", "/api/v1/actions", payload)
+
     def reset(self) -> dict[str, Any]:
         return self.request_json("POST", "/api/v1/reset")
-
