@@ -34,9 +34,9 @@ DEFAULT_TURN_DISTRIBUTION = {
     "right": 0.2,
 }
 
-DEFAULT_LIGHT_GREEN_SECONDS = 10.0
+DEFAULT_LIGHT_GREEN_SECONDS = 30.0
 DEFAULT_LIGHT_YELLOW_SECONDS = 5.0
-DEFAULT_LIGHT_RED_SECONDS = 70.0
+DEFAULT_LIGHT_RED_SECONDS = 50.0
 
 
 def _build_database_url() -> str:
@@ -134,12 +134,12 @@ class SimulationConfig:
 
 
 # Cấu hình Reward & Trọng số RL (Đồng bộ với Agent)
-REWARD_OFFSET = 5.0
-WEIGHT_QUEUE = 2.2
-WEIGHT_IMBALANCE = 1.2
-WEIGHT_RED_PRESSURE = 0.6
-WEIGHT_SWITCH_PENALTY = 0.35
-WEIGHT_SPEED_BONUS = 0.25
+REWARD_OFFSET = 5
+WEIGHT_QUEUE = 3.0           # Giữ nguyên của bạn (Rất tốt để ưu tiên giải tỏa)
+WEIGHT_IMBALANCE = 4.0       # Giữ nguyên của bạn (Rất tốt cho traffic lệch)
+WEIGHT_RED_PRESSURE = 1.5    # Tăng lên để chống "bỏ đói" nhánh ít xe
+WEIGHT_SWITCH_PENALTY = 3.0  # Tăng lên để chống giật/đổi đèn liên tục
+WEIGHT_SPEED_BONUS = 0.75    # Giữ nguyên của bạn
 
 SCALE_QUEUE = 12.0
 SCALE_IMBALANCE = 10.0
