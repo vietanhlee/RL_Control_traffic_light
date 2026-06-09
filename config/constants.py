@@ -30,13 +30,13 @@ DEFAULT_SAFE_GAP_METERS = 10.0
 
 DEFAULT_TURN_DISTRIBUTION = {
     "left": 0.1,
-    "straight": 0.6,
-    "right": 0.3,
+    "straight": 0.75,
+    "right": 0.15,
 }
 
-DEFAULT_LIGHT_GREEN_SECONDS = 40.0
+DEFAULT_LIGHT_GREEN_SECONDS = 50.0
 DEFAULT_LIGHT_YELLOW_SECONDS = 5.0
-DEFAULT_LIGHT_RED_SECONDS = 50.0
+DEFAULT_LIGHT_RED_SECONDS = 60.0
 
 
 def _build_database_url() -> str:
@@ -139,10 +139,10 @@ WEIGHT_QUEUE = 3.0           # Giữ nguyên của bạn (Rất tốt để ưu 
 WEIGHT_IMBALANCE = 4.0       # Giữ nguyên của bạn (Rất tốt cho traffic lệch)
 WEIGHT_RED_PRESSURE = 1.5    # Tăng lên để chống "bỏ đói" nhánh ít xe
 WEIGHT_SWITCH_PENALTY = 3.0  # Tăng lên để chống giật/đổi đèn liên tục
-WEIGHT_SPEED_BONUS = 0.1   # Giữ nguyên của bạn
+WEIGHT_SPEED_BONUS = 0.08   # Giữ nguyên của bạn
 
-SCALE_QUEUE = 10.0
+SCALE_QUEUE = 9.0
 SCALE_IMBALANCE = 5.0
 SCALE_RED_PRESSURE = 10.0
-SCALE_SPEED = 22.0
+SCALE_SPEED = 29.0
 REWARD_CLIP = 5.0

@@ -93,20 +93,10 @@ export default function App() {
     setTimeout(() => setIsSwitching(false), 500);
   };
 
-  // 5. Canvas Renderer
-  // 5. Canvas Renderer
-  useEffect(() => {
-    if (!canvasRef.current || !canvasData || !networkData) return;
-    const ctx = canvasRef.current.getContext("2d");
-    const width = canvasRef.current.width;
-    const height = canvasRef.current.height;
-
-    // Coordinate mapping (Dynamic scale to fit any map)
+  const getCanvasTransform = (width, height, networkData) => {
+    if (!networkData || !networkData.nodes) return null;
     const nodesArray = Object.values(networkData.nodes);
-    let minX = 0,
-      maxX = 900,
-      minY = 0,
-      maxY = 700;
+    let minX = 0, maxX = 900, minY = 0, maxY = 700;
     if (nodesArray.length > 0) {
       minX = Math.min(...nodesArray.map((n) => n.x));
       maxX = Math.max(...nodesArray.map((n) => n.x));
@@ -115,19 +105,70 @@ export default function App() {
     }
     const mapWidth = maxX - minX || 1;
     const mapHeight = maxY - minY || 1;
-
     const padding = 50;
     const scaleX = (width - padding * 2) / mapWidth;
     const scaleY = (height - padding * 2) / mapHeight;
     const scale = Math.min(scaleX, scaleY);
-
     const offsetX = (width - mapWidth * scale) / 2 - minX * scale;
     const offsetY = (height - mapHeight * scale) / 2 - minY * scale;
 
     const mapX = (x) => x * scale + offsetX;
     const mapY = (y) => y * scale + offsetY;
-    const laneWidth = 10 * scale; // Width per lane
-    const carScale = Math.max(0.4, scale / 0.95); // Scale xe/đèn tương tự tỉ lệ bản đồ, giới hạn min 0.4
+    const laneWidth = 10 * scale; 
+    const carScale = Math.max(0.4, scale / 0.95);
+    
+    return { mapX, mapY, scale, offsetX, offsetY, laneWidth, carScale };
+  };
+
+  const handleCanvasClick = (e) => {
+    if (!canvasRef.current || !networkData) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const scaleX = canvasRef.current.width / rect.width;
+    const scaleY = canvasRef.current.height / rect.height;
+    
+    const clickX = (e.clientX - rect.left) * scaleX;
+    const clickY = (e.clientY - rect.top) * scaleY;
+
+    const transform = getCanvasTransform(canvasRef.current.width, canvasRef.current.height, networkData);
+    if (!transform) return;
+    const { mapX, mapY, laneWidth } = transform;
+
+    let closestNode = null;
+    let minDistance = Infinity;
+
+    Object.entries(networkData.nodes).forEach(([nodeId, pos]) => {
+      const cx = mapX(pos.x);
+      const cy = mapY(pos.y);
+      const dist = Math.hypot(clickX - cx, clickY - cy);
+      
+      const connectedEdges = networkData.edges.filter(
+          (edge) => edge.start === Number(nodeId) || edge.end === Number(nodeId),
+      );
+      const maxLanes = connectedEdges.reduce((m, edge) => Math.max(m, edge.lanes), 1);
+      const R = maxLanes * laneWidth * 1.15;
+      
+      if (dist < R + 30 && dist < minDistance) {
+        minDistance = dist;
+        closestNode = Number(nodeId);
+      }
+    });
+
+    if (closestNode !== null) {
+      setSelectedIntersection(closestNode);
+    }
+  };
+
+  // 5. Canvas Renderer
+  useEffect(() => {
+    if (!canvasRef.current || !canvasData || !networkData) return;
+    const ctx = canvasRef.current.getContext("2d");
+    const width = canvasRef.current.width;
+    const height = canvasRef.current.height;
+
+    const transform = getCanvasTransform(width, height, networkData);
+    if (!transform) return;
+    const { mapX, mapY, laneWidth, carScale } = transform;
+
 
     // Khởi tạo hoặc thay đổi kích thước offscreen canvas đệm nền tĩnh
     if (!offscreenCanvasRef.current) {
@@ -456,6 +497,31 @@ export default function App() {
         const lanes = edge ? edge.lanes : 1;
         const stopLineDistance = 3 * laneWidth + 12 * carScale;
         const sideOffset = lanes * laneWidth * 0.85;
+
+        // Vẽ overlay dải màu nền trên mặt đường (chiều dài = 1/3 đoạn đường)
+        const overlayLength = L / 3;
+        const startX = x - ux * stopLineDistance;
+        const startY = y - uy * stopLineDistance;
+        const endX = startX - ux * overlayLength;
+        const endY = startY - uy * overlayLength;
+        const halfRoadCenterOffset = (lanes * laneWidth) / 2;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(startX + nx * halfRoadCenterOffset, startY + ny * halfRoadCenterOffset);
+        ctx.lineTo(endX + nx * halfRoadCenterOffset, endY + ny * halfRoadCenterOffset);
+        
+        const overlayGrad = ctx.createLinearGradient(startX, startY, endX, endY);
+        const baseColor = light.color === "RED" ? "239, 68, 68" : light.color === "YELLOW" ? "245, 158, 11" : "34, 197, 94";
+        overlayGrad.addColorStop(0, `rgba(${baseColor}, 0.7)`);
+        overlayGrad.addColorStop(1, `rgba(${baseColor}, 0.0)`);
+        
+        ctx.strokeStyle = overlayGrad;
+        ctx.lineWidth = lanes * laneWidth * 0.95; // Hơi nhỏ hơn bề rộng làn đường một xíu để khỏi lem
+        ctx.lineCap = "butt";
+        ctx.stroke();
+        ctx.restore();
+
 
         const ix = x - ux * stopLineDistance + nx * sideOffset;
         const iy = y - uy * stopLineDistance + ny * sideOffset;
@@ -877,9 +943,10 @@ export default function App() {
 
                     <canvas
                       ref={canvasRef}
+                      onClick={handleCanvasClick}
                       width={900}
                       height={700}
-                      className="block h-auto w-full max-h-[760px] object-contain"
+                      className="block h-auto w-full max-h-[760px] object-contain cursor-pointer"
                     />
                     {!canvasData && (
                       <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
@@ -897,64 +964,57 @@ export default function App() {
             </section>
           </main>
 
-          <aside className="col-span-12 xl:col-span-4 flex flex-col gap-6">
+          <aside className="col-span-12 xl:col-span-4 flex flex-col gap-4">
             <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 shadow-[0_30px_80px_rgba(2,6,23,0.45)] backdrop-blur-xl">
-              <div className="border-b border-white/10 px-5 py-4 sm:px-6">
+              <div className="border-b border-white/10 px-5 py-3 sm:px-6">
                 <h3 className="flex items-center gap-2 text-base font-semibold text-white">
                   <Settings2 className="h-5 w-5 text-cyan-300" />
                   Control Panel
                 </h3>
               </div>
 
-              <div className="space-y-4 p-5 sm:p-6">
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
-                  <label className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-                    Intersection
-                  </label>
-                  <select
-                    className="w-full rounded-2xl border border-white/10 bg-[#0b1220] px-4 py-3 text-sm text-slate-100 outline-none transition focus:border-cyan-400/60 focus:ring-2 focus:ring-cyan-400/20"
-                    value={selectedIntersection}
-                    onChange={(e) =>
-                      setSelectedIntersection(Number(e.target.value))
-                    }
-                  >
-                    {availableNodes.map((nodeId) => (
-                      <option key={nodeId} value={nodeId}>
-                        Node #{nodeId}
-                      </option>
-                    ))}
-                  </select>
+              <div className="space-y-3 p-4 sm:p-5">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                      Intersection
+                    </label>
+                    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0b1220] px-3 py-1.5 text-xs text-slate-100">
+                      <span className="flex h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)] animate-pulse" />
+                      <span className="font-semibold tracking-wide">Node #{selectedIntersection}</span>
+                    </div>
+                  </div>
 
                   <button
                     onClick={handleForceSwitch}
                     disabled={isSwitching}
-                    className={`relative mt-4 inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl px-4 py-3 text-sm font-bold transition-all duration-300 ${
+                    className={`relative mt-3 inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl px-4 py-2 text-xs font-bold transition-all duration-300 ${
                       isSwitching
                         ? "cursor-not-allowed border border-white/10 bg-white/5 text-slate-500"
                         : "bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 text-slate-950 shadow-[0_4px_20px_rgba(6,182,212,0.25)] hover:-translate-y-0.5 hover:shadow-[0_6px_25px_rgba(6,182,212,0.35)] hover:scale-[1.01] active:scale-[0.99]"
                     }`}
                   >
                     {isSwitching ? "Switching Phase..." : "Force Phase Switch"}
-                    <ArrowUpRight className="h-4 w-4" />
+                    <ArrowUpRight className="h-3.5 w-3.5" />
                   </button>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                      <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-400">
                         Queue Length
                       </div>
-                      <div className="mt-2 text-3xl font-black tracking-[-0.05em] text-rose-300">
+                      <div className="mt-1 text-2xl font-black tracking-[-0.05em] text-rose-300">
                         {totalQueue}
                       </div>
                     </div>
-                    <div className="rounded-2xl border border-rose-400/15 bg-rose-400/10 p-3 animate-pulse">
-                      <TriangleAlert className="h-5 w-5 text-rose-300" />
+                    <div className="rounded-xl border border-rose-400/15 bg-rose-400/10 p-2 animate-pulse">
+                      <TriangleAlert className="h-4 w-4 text-rose-300" />
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-2.5 rounded-2xl border border-white/5 bg-slate-900/20 p-2.5">
+                  <div className="mt-3 grid gap-2 rounded-xl border border-white/5 bg-slate-900/20 p-2">
                     {selectedMetrics && selectedMetrics.directions ? (
                       Object.entries(selectedMetrics.directions).map(
                         ([incomingId, metrics]) => {
@@ -966,24 +1026,24 @@ export default function App() {
                           return (
                             <div
                               key={incomingId}
-                              className="flex flex-col gap-2 rounded-xl border border-white/5 bg-slate-900/40 px-3 py-2.5"
+                              className="flex flex-col gap-1.5 rounded-lg border border-white/5 bg-slate-900/40 px-2.5 py-1.5"
                             >
-                              <div className="flex items-center justify-between text-xs">
+                              <div className="flex items-center justify-between text-[11px]">
                                 <div>
                                   <span className="font-semibold text-slate-200">
                                     Node #{incomingId}
                                   </span>
-                                  <span className="ml-2 text-[10px] text-slate-500">
+                                  <span className="ml-2 text-[9px] text-slate-500">
                                     {metrics.avg_speed.toFixed(1)} m/s
                                   </span>
                                 </div>
                                 <span
-                                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${metrics.queue_length > 5 ? "bg-rose-500/20 text-rose-300" : "bg-slate-800 text-slate-300"}`}
+                                  className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${metrics.queue_length > 5 ? "bg-rose-500/20 text-rose-300" : "bg-slate-800 text-slate-300"}`}
                                 >
                                   Queue: {metrics.queue_length}
                                 </span>
                               </div>
-                              <div className="h-1.5 w-full rounded-full bg-slate-950/60 overflow-hidden">
+                              <div className="h-1 w-full rounded-full bg-slate-950/60 overflow-hidden">
                                 <div
                                   className={`h-full rounded-full transition-all duration-500 ${
                                     metrics.queue_length > 8
@@ -1007,14 +1067,13 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Section RL Reward Diagnostics */}
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-4 space-y-4">
+                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3 space-y-3">
                   <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-400">
                       RL Diagnostics
                     </div>
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                      className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
                         (rewardMetrics?.reward ?? 0) >= 0
                           ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
                           : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
@@ -1027,10 +1086,10 @@ export default function App() {
                     </span>
                   </div>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {/* Queue Penalty */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px]">
+                    <div className="space-y-0.5">
+                      <div className="flex justify-between text-[10px]">
                         <span className="text-slate-400">Queue Penalty</span>
                         <span className="font-semibold text-rose-300">
                           -
@@ -1051,8 +1110,8 @@ export default function App() {
                     </div>
 
                     {/* Imbalance Penalty */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px]">
+                    <div className="space-y-0.5">
+                      <div className="flex justify-between text-[10px]">
                         <span className="text-slate-400">
                           Imbalance Penalty
                         </span>
@@ -1075,8 +1134,8 @@ export default function App() {
                     </div>
 
                     {/* Red Pressure Penalty */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px]">
+                    <div className="space-y-0.5">
+                      <div className="flex justify-between text-[10px]">
                         <span className="text-slate-400">
                           Red Pressure Penalty
                         </span>
@@ -1099,8 +1158,8 @@ export default function App() {
                     </div>
 
                     {/* Speed Bonus */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[11px]">
+                    <div className="space-y-0.5">
+                      <div className="flex justify-between text-[10px]">
                         <span className="text-slate-400">Avg Speed Bonus</span>
                         <span className="font-semibold text-emerald-400">
                           +

@@ -73,6 +73,7 @@ class SimulationEngine:
         self.global_imbalance: float = 0.0
         self.random = random.Random(42)
         self.last_switch_time: Dict[int, float] = {}
+        self.boundary_nodes = [n for n in self.network.all_nodes() if self.network.is_boundary_node(n)]
         self._build_intersections()
         self._build_zones()
         self._load_light_configs()
@@ -220,7 +221,7 @@ class SimulationEngine:
             spawns += 1
 
     def _spawn_one_vehicle(self) -> None:
-        origin = self.random.choice(list(self.network.all_nodes()))
+        origin = self.random.choice(self.boundary_nodes) if self.boundary_nodes else self.random.choice(list(self.network.all_nodes()))
         path = self._generate_route(origin)
         if len(path) < 2:
             return
@@ -273,7 +274,7 @@ class SimulationEngine:
         )
         self.vehicles.append(vehicle)
 
-    def _generate_route(self, origin: int, max_hops: int = 18) -> list[int]:
+    def _generate_route(self, origin: int, max_hops: int = 25) -> list[int]:
         neighbors = self.network.neighbors(origin)
         if not neighbors:
             return [origin]
@@ -291,7 +292,15 @@ class SimulationEngine:
             weighted = []
             for nxt in candidates:
                 turn = self.choose_turn_type(incoming_from, via_node, nxt)
-                weighted.append((nxt, dist.get(turn, 0.1)))
+                weight = dist.get(turn, 0.1)
+                
+                # Ưu tiên xe đi vào lõi, hạn chế đi quanh rìa
+                if self.network.is_boundary_node(nxt):
+                    weight *= 0.3
+                else:
+                    weight *= 2.5
+                
+                weighted.append((nxt, weight))
 
             total = sum(weight for _, weight in weighted)
             if total <= 1e-6:
@@ -309,8 +318,8 @@ class SimulationEngine:
             path.append(chosen)
 
             # Randomly terminate route to preserve diverse trip lengths.
-            if len(path) >= 4 and self.random.random() < 0.35:
-                if self.network.is_boundary_node(chosen):
+            if len(path) >= 4 and self.network.is_boundary_node(chosen):
+                if self.random.random() < 0.60:
                     break
 
         return path

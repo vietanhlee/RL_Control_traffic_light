@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 # ─── API & Training Loop ───────────────────────────────────────────────────────
 DEFAULT_BASE_URL = "http://127.0.0.1:8011"
-DEFAULT_DECISION_INTERVAL_SECONDS = 1.5 # Giây chờ giữa các quyết định
+DEFAULT_DECISION_INTERVAL_SECONDS = 10 # Giây chờ giữa các quyết định
 DEFAULT_SAVE_EVERY = 250                   # Lưu model mỗi N step
 DEFAULT_MODEL_PATH = "RL model/artifacts/qmix_agent.pth"
 DEFAULT_HISTORY_WINDOW = 32               # Cửa sổ tính moving average
@@ -23,7 +23,7 @@ DEFAULT_GAMMA = 0.96                      # Discount factor γ
 DEFAULT_EPSILON = 1.0                     # Epsilon exploration ban đầu
 DEFAULT_MIN_EPSILON = 0.05                # Epsilon tối thiểu
 DEFAULT_EPSILON_DECAY = 0.9995            # Hệ số suy giảm epsilon/step
-DEFAULT_MIN_PHASE_HOLD_STEPS = 4          # Bước tối thiểu giữ pha đèn
+DEFAULT_MIN_PHASE_HOLD_STEPS = 2          # Bước tối thiểu giữ pha đèn
 DEFAULT_BATCH_SIZE = 32                   # Kích thước mini-batch từ joint buffer
 DEFAULT_BUFFER_CAPACITY = 5000            # Capacity của JointReplayBuffer
 DEFAULT_TARGET_UPDATE_FREQ = 50          # Hard-update target nets mỗi N updates
