@@ -38,6 +38,22 @@ async def get_states():
                 timing = intersection.timing_snapshot()[incoming]
                 timing_snapshot[incoming] = asdict(timing)
 
+            # Tính toán các chỉ số tập trung ở BE
+            queue_total = sum(float(d["queue_length"]) for d in state_data.values())
+            density_total = sum(float(d["motorcycle_density"]) + float(d["car_density"]) for d in state_data.values())
+            
+            speeds = []
+            for d in state_data.values():
+                speeds.append((float(d["motorcycle_avg_speed"]) + float(d["car_avg_speed"])) / 2.0)
+            speed_avg = sum(speeds) / len(speeds) if speeds else 0.0
+
+            local_imbalance = current_engine.local_imbalance.get(intersection_id, 0.0)
+
+            red_pressure = 0.0
+            for incoming, color in light_states.items():
+                if color.upper() == "RED":
+                    red_pressure += state_data[incoming]["queue_length"]
+
             result[intersection_id] = {
                 "intersection_id": intersection_id,
                 "time": current_engine.time_s,
@@ -45,8 +61,13 @@ async def get_states():
                 "directions": state_data,
                 "light_states": light_states,
                 "timings": timing_snapshot,
-                "local_imbalance": current_engine.local_imbalance.get(intersection_id, 0.0),
+                "local_imbalance": local_imbalance,
                 "global_imbalance": current_engine.global_imbalance,
+                "queue_total": queue_total,
+                "density_total": density_total,
+                "speed_avg": speed_avg,
+                "red_pressure": red_pressure,
+                "imbalance": local_imbalance,
             }
         return result
 
@@ -75,6 +96,22 @@ async def get_state(intersection_id: int):
             timing = intersection.timing_snapshot()[incoming]
             timing_snapshot[incoming] = asdict(timing)
 
+        # Tính toán các chỉ số tập trung ở BE
+        queue_total = sum(float(d["queue_length"]) for d in state_data.values())
+        density_total = sum(float(d["motorcycle_density"]) + float(d["car_density"]) for d in state_data.values())
+        
+        speeds = []
+        for d in state_data.values():
+            speeds.append((float(d["motorcycle_avg_speed"]) + float(d["car_avg_speed"])) / 2.0)
+        speed_avg = sum(speeds) / len(speeds) if speeds else 0.0
+
+        local_imbalance = current_engine.local_imbalance.get(intersection_id, 0.0)
+
+        red_pressure = 0.0
+        for incoming, color in light_states.items():
+            if color.upper() == "RED":
+                red_pressure += state_data[incoming]["queue_length"]
+
         return {
             "intersection_id": intersection_id,
             "time": current_engine.time_s,
@@ -82,8 +119,13 @@ async def get_state(intersection_id: int):
             "directions": state_data,
             "light_states": light_states,
             "timings": timing_snapshot,
-            "local_imbalance": current_engine.local_imbalance.get(intersection_id, 0.0),
+            "local_imbalance": local_imbalance,
             "global_imbalance": current_engine.global_imbalance,
+            "queue_total": queue_total,
+            "density_total": density_total,
+            "speed_avg": speed_avg,
+            "red_pressure": red_pressure,
+            "imbalance": local_imbalance,
         }
 
 @router.get("/reward_metrics/{intersection_id}")

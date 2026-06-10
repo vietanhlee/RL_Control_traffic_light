@@ -1,43 +1,52 @@
 """
-environment.py – Định nghĩa môi trường RL giao tiếp với backend simulation.
+environment.py â€“ Äá»‹nh nghÄ©a mÃ´i trÆ°á»ng RL giao tiáº¿p vá»›i backend simulation.
 
-Module này cung cấp lớp TrafficEnvironment đóng vai trò là "interface" giữa
-RL agent và backend simulation, tuân theo giao thức Observe → Act → Reward.
+Module nÃ y cung cáº¥p lá»›p TrafficEnvironment Ä‘Ã³ng vai trÃ² lÃ  "interface" giá»¯a
+RL agent vÃ  backend simulation, tuÃ¢n theo giao thá»©c Observe â†’ Act â†’ Reward.
 
-Giao thức:
-  1. bootstrap() / reset()   : Khởi tạo môi trường, lấy danh sách nút giao.
-  2. observe_all()            : Lấy observation từ tất cả nút giao.
-  3. apply_actions(actions)   : Gửi hành động lên backend.
-  4. advance()                : Chờ decision_interval_seconds → trả về observation mới.
-  5. reward_for(obs, action)  : Tính phần thưởng cho một nút giao từ observation.
+Giao thá»©c:
+  1. bootstrap() / reset()   : Khá»Ÿi táº¡o mÃ´i trÆ°á»ng, láº¥y danh sÃ¡ch nÃºt giao.
+  2. observe_all()            : Láº¥y observation tá»« táº¥t cáº£ nÃºt giao.
+  3. apply_actions(actions)   : Gá»�i hÃ nh Ä‘á»™ng lÃªn backend.
+  4. advance()                : Chá» decision_interval_seconds â†’ tráº£ vá» observation má»›i.
+  5. reward_for(obs, action)  : TÃ�nh pháº§n thÆ°á»Ÿng tá»« config.reward_fn (dÃ¹ng chung vá»›i BE).
 
-Reward function:
-  Reward = reward_offset − (queue_penalty + imbalance_penalty + red_pressure_penalty
-           + switch_penalty − speed_bonus)
-  Được clip vào khoảng [-reward_clip, +reward_clip].
+Reward function (Single Source of Truth: config/reward_fn.py):
+  reward = clip(reward_offset âˆ’ cost, âˆ’clip, +clip)
+  cost   = w_q*(q/s_q) + w_i*(imbal/s_i) + w_r*(rp/s_r) + switch âˆ’ w_s*(speed/s_s)
+  Náº¿u reward_raw < 0: reward_raw = âˆ’(|reward_raw|Â²)  (â†’ phi tuyáº¿n, pháº¡t táº¯c ngháº¿n náº·ng)
 """
 
 from __future__ import annotations
 
+import sys
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 from .client import TrafficApiClient
 from .config import RewardWeights
 
+# Cho phÃ©p import config.reward_fn tá»« project root
+_project_root = str(Path(__file__).resolve().parents[2])
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+from config.reward_fn import compute_intersection_reward  # noqa: E402
+
 
 @dataclass
 class IntersectionRecord:
-    """Theo dõi trạng thái thời gian của một nút giao.
+    """Theo dÃµi tráº¡ng thÃ¡i thá»i gian cá»§a má»™t nÃºt giao.
 
-    Được dùng để kiểm soát minimum phase hold – ngăn agent chuyển đèn
-    quá nhanh (flapping) gây bất ổn cho giao thông thực tế.
+    ÄÆ°á»£c dÃ¹ng Ä‘á»ƒ kiá»ƒm soÃ¡t minimum phase hold â€“ ngÄƒn agent chuyá»ƒn Ä‘Ã¨n
+    quÃ¡ nhanh (flapping) gÃ¢y báº¥t á»•n cho giao thÃ´ng thá»±c táº¿.
 
     Attributes:
-        last_switch_step  : Bước (step) cuối cùng agent thực hiện hành động CHANGE.
-        steps_since_switch: Số bước đã trôi qua kể từ lần chuyển pha cuối.
-                            Giá trị mặc định lớn (9999) để cho phép switch ngay từ đầu.
+        last_switch_step  : BÆ°á»›c (step) cuá»‘i cÃ¹ng agent thá»±c hiá»‡n hÃ nh Ä‘á»™ng CHANGE.
+        steps_since_switch: Sá»‘ bÆ°á»›c Ä‘Ã£ trÃ´i qua ká»ƒ tá»« láº§n chuyá»ƒn pha cuá»‘i.
+                            GiÃ¡ trá»‹ máº·c Ä‘á»‹nh lá»›n (9999) Ä‘á»ƒ cho phÃ©p switch ngay tá»« Ä‘áº§u.
     """
 
     last_switch_step: int = -9999
@@ -122,10 +131,10 @@ class TrafficEnvironment:
         # Chuyển đổi key từ chuỗi (do JSON) thành int
         return {int(k): v for k, v in states.items()}
 
-    # ─── Các hàm tính feature phụ trợ cho reward ──────────────────────────────
+    # ── Các hàm lấy features từ backend đã tính sẵn ──────────────────────────
 
     def _queue_total(self, observation: dict[str, Any]) -> float:
-        """Tính tổng queue (số xe chờ) từ tất cả hướng vào của nút giao.
+        """Lấy tổng queue (số xe chờ) đã tính sẵn từ Backend.
 
         Args:
             observation: Dict observation của một nút giao.
@@ -133,17 +142,10 @@ class TrafficEnvironment:
         Returns:
             Tổng queue_length của tất cả hướng vào (float).
         """
-        directions = observation.get("directions", {})
-        if not isinstance(directions, dict):
-            return 0.0
-        total = 0.0
-        for payload in directions.values():
-            if isinstance(payload, dict):
-                total += float(payload.get("queue_length", 0.0))
-        return total
+        return float(observation.get("queue_total", 0.0))
 
     def _density_total(self, observation: dict[str, Any]) -> float:
-        """Tính tổng mật độ phương tiện (motorcycle + car) từ tất cả hướng vào.
+        """Lấy tổng mật độ phương tiện đã tính sẵn từ Backend.
 
         Args:
             observation: Dict observation của một nút giao.
@@ -151,78 +153,36 @@ class TrafficEnvironment:
         Returns:
             Tổng mật độ (xe/m) trung bình từ tất cả hướng.
         """
-        directions = observation.get("directions", {})
-        if not isinstance(directions, dict):
-            return 0.0
-        total = 0.0
-        for payload in directions.values():
-            if isinstance(payload, dict):
-                total += float(payload.get("motorcycle_density", 0.0))
-                total += float(payload.get("car_density", 0.0))
-        return total
+        return float(observation.get("density_total", 0.0))
 
     def _speed_average(self, observation: dict[str, Any]) -> float:
-        """Tính tốc độ trung bình tất cả phương tiện từ tất cả hướng vào.
+        """Lấy tốc độ trung bình đã tính sẵn từ Backend.
 
         Args:
             observation: Dict observation của một nút giao.
 
         Returns:
-            Tốc độ trung bình (m/s). Trả về 0.0 nếu không có hướng nào.
+            Tốc độ trung bình (m/s).
         """
-        directions = observation.get("directions", {})
-        if not isinstance(directions, dict) or not directions:
-            return 0.0
-        total = 0.0
-        count = 0
-        for payload in directions.values():
-            if isinstance(payload, dict):
-                total += (
-                    float(payload.get("motorcycle_avg_speed", 0.0))
-                    + float(payload.get("car_avg_speed", 0.0))
-                ) / 2.0
-                count += 1
-        return total / count if count else 0.0
+        return float(observation.get("speed_avg", 0.0))
 
     def _imbalance(self, observation: dict[str, Any]) -> float:
-        """Tính độ mất cân bằng queue giữa các hướng vào của nút giao.
-
-        Imbalance = sum(|queue_i - mean_queue|) cho tất cả hướng i.
-        Giá trị cao → một số hướng bị tắc nghẽn nặng hơn hướng khác.
+        """Lấy độ mất cân bằng queue đã tính sẵn từ Backend.
 
         Args:
             observation: Dict observation của một nút giao.
 
         Returns:
-            Độ mất cân bằng (float, ≥ 0).
+            Độ mất cân bằng (float, >= 0).
         """
-        directions = observation.get("directions", {})
-        if not isinstance(directions, dict) or not directions:
-            return 0.0
-        queues = [
-            float(payload.get("queue_length", 0.0))
-            for payload in directions.values()
-            if isinstance(payload, dict)
-        ]
-        if not queues:
-            return 0.0
-        avg_queue = sum(queues) / len(queues)
-        return sum(abs(queue - avg_queue) for queue in queues)
+        return float(observation.get("imbalance", 0.0))
 
     def reward_for(self, observation: dict[str, Any], action: int) -> float:
         """Tính phần thưởng cho một nút giao dựa trên trạng thái và hành động.
 
-        Reward Function:
-            cost = w_q*(queue/scale_q) + w_i*(imbalance/scale_i)
-                   + w_r*(red_pressure/scale_r) + switch_penalty - w_s*(speed/scale_s)
-            reward = clip(reward_offset - cost, -clip_val, +clip_val)
-
-        Diễn giải:
-          - Queue penalty     : Phạt khi nhiều xe đang chờ → giảm queue
-          - Imbalance penalty : Phạt khi các hướng mất cân bằng → phân phối đều
-          - Red pressure      : Phạt riêng khi đèn đỏ nhưng xe vẫn xếp hàng dài
-          - Switch penalty    : Phạt khi agent thực hiện CHANGE (tránh flapping)
-          - Speed bonus       : Thưởng khi xe lưu thông nhanh
+        Sử dụng compute_intersection_reward() từ config.reward_fn — cùng module
+        với simulation_service.py (Single Source of Truth). Mọi thay đổi logic
+        reward chỉ cần sửa ở config/reward_fn.py.
 
         Args:
             observation: Dict observation của nút giao sau khi thực hiện hành động.
@@ -231,35 +191,31 @@ class TrafficEnvironment:
         Returns:
             Phần thưởng đã được clip vào [-reward_clip, +reward_clip].
         """
-        queue_total = self._queue_total(observation)
-        imbalance = self._imbalance(observation)
-        speed_avg = self._speed_average(observation)
-        red_pressure = 0.0
+        queue_total  = self._queue_total(observation)
+        imbalance    = self._imbalance(observation)
+        speed_avg    = self._speed_average(observation)
+        red_pressure = float(observation.get("red_pressure", 0.0))
 
-        # Tính red_pressure: tổng queue ở các hướng đang đèn đỏ
-        light_states = observation.get("light_states", {})
-        if isinstance(light_states, dict):
-            for raw_key, color in light_states.items():
-                if isinstance(color, str) and color.upper() == "RED":
-                    try:
-                        queue = float(observation["directions"][raw_key]["queue_length"])  # type: ignore[index]
-                    except Exception:
-                        queue = 0.0
-                    if queue > 0.0:
-                        red_pressure += queue
-
-        # Chi phí chuyển pha (khuyến khích giữ pha ổn định)
-        penalty = self.reward_weights.switch_penalty if action == 1 else 0.0
-
-        cost = (
-            self.reward_weights.queue * (queue_total / self.reward_weights.queue_scale)
-            + self.reward_weights.imbalance * (imbalance / self.reward_weights.imbalance_scale)
-            + self.reward_weights.red_pressure * (red_pressure / self.reward_weights.red_pressure_scale)
-            + penalty
-            - self.reward_weights.speed_bonus * (speed_avg / self.reward_weights.speed_scale)
+        rc = compute_intersection_reward(
+            queue_total=queue_total,
+            imbalance=imbalance,
+            red_pressure=red_pressure,
+            speed_avg=speed_avg,
+            switched=(action == 1),
+            # Truyền tường minh từ RewardWeights để có thể override khi cần
+            w_queue=self.reward_weights.queue,
+            w_imbalance=self.reward_weights.imbalance,
+            w_red_pressure=self.reward_weights.red_pressure,
+            w_switch=self.reward_weights.switch_penalty,
+            w_speed=self.reward_weights.speed_bonus,
+            scale_queue=self.reward_weights.queue_scale,
+            scale_imbalance=self.reward_weights.imbalance_scale,
+            scale_red_pressure=self.reward_weights.red_pressure_scale,
+            scale_speed=self.reward_weights.speed_scale,
+            reward_offset=self.reward_weights.reward_offset,
+            reward_clip=self.reward_weights.reward_clip,
         )
-        reward = self.reward_weights.reward_offset - cost
-        return max(-self.reward_weights.reward_clip, min(self.reward_weights.reward_clip, reward))
+        return rc.reward
 
     def apply_actions(self, actions: dict[int, int]) -> None:
         """Gửi hành động lên backend và cập nhật IntersectionRecord.

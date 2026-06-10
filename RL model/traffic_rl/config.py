@@ -28,6 +28,7 @@ from config.constants import (
     SCALE_RED_PRESSURE,
     SCALE_SPEED,
     REWARD_CLIP,
+    GLOBAL_IMBALANCE_WEIGHT,
 )
 
 

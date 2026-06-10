@@ -6,14 +6,20 @@ Quy trình mỗi step:
   2. select_actions()    → dict[agent_id → action]  (ε-greedy, decentralized)
   3. apply_actions()     → gửi hành động lên backend
   4. advance()           → chờ decision_interval, nhận next_obs
-  5. reward_for()        → tính reward từng nút → mean → joint_reward
+  5. reward_for()        → tính reward từng nút → joint_reward
   6. buffer.push()       → lưu 1 joint transition
   7. agent.update()      → 1 bước QMIX gradient descent
   8. decay_epsilon()     → giảm exploration rate
 
+Joint Reward (cooperative, network-balanced):
+  joint_reward = mean(rewards) − GLOBAL_IMBALANCE_WEIGHT × std(rewards)
+  - mean: tín hiệu hợp tác trung bình của toàn mạng.
+  - std:  độ chênh lệch reward giữa các nút → std lớn = mạng mất cân bằng.
+  - α×std: hình phạt cho sự chênh lệch, khuyến khích Agent cân bằng tải.
+
 Khác với DQN cũ:
   - Thay vì update N lần (1 per agent), QMIX chỉ update 1 lần/step với joint loss
-  - Reward là mean của tất cả agents (cooperative)
+  - Reward là mean − α×std của tất cả agents (cooperative, balanced)
   - tqdm postfix hiển thị: epsilon, loss, avg_reward, avg_queue
 """
 
@@ -47,6 +53,7 @@ from traffic_rl.config import (
     DEFAULT_N_AGENTS,
     DEFAULT_SAVE_EVERY,
     DEFAULT_TARGET_UPDATE_FREQ,
+    GLOBAL_IMBALANCE_WEIGHT,
 )
 from traffic_rl.environment import TrafficEnvironment
 from traffic_rl.features import build_features
@@ -207,6 +214,8 @@ def main() -> int:
         next_observation = env.advance()
 
         # ── Bước 4: Tính joint reward và queue stats ──────────────────────
+        # Công thức: joint_reward = mean(rewards) − α × std(rewards)
+        # std lớn → các nút chênh lệch nhau nhiều → khuyến khích cân bằng tải
         step_rewards: list[float] = []
         step_queue = 0.0
         next_obs_array = obs_dict_to_array(next_observation, agent_ids)
@@ -216,13 +225,12 @@ def main() -> int:
             obs = next_observation[aid]
             reward = env.reward_for(obs, actions.get(aid, 0))
             step_rewards.append(reward)
-            step_queue += sum(
-                float(p.get("queue_length", 0.0))
-                for p in obs.get("directions", {}).values()
-                if isinstance(p, dict)
-            )
+            step_queue += float(obs.get("queue_total", 0.0))
 
-        joint_reward = float(np.mean(step_rewards))   # mean (cooperative)
+        rewards_arr = np.array(step_rewards, dtype=np.float32)
+        mean_r = float(np.mean(rewards_arr))
+        std_r  = float(np.std(rewards_arr))   # population std
+        joint_reward = mean_r - GLOBAL_IMBALANCE_WEIGHT * std_r  # phạt mất cân bằng
         avg_queue = step_queue / max(n_agents, 1)
 
         # ── Bước 5: Lưu joint transition vào buffer ───────────────────────

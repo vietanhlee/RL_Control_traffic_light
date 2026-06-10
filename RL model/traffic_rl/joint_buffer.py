@@ -9,7 +9,7 @@ Cấu trúc một transition:
   obs_all        : (n_agents, obs_dim)        – local observation của từng agent
   actions_all    : (n_agents,)                – hành động của từng agent
   global_state   : (global_state_dim,)        – ghép toàn bộ obs (input cho mixing net)
-  joint_reward   : float                      – mean reward toàn cục
+  joint_reward   : float                      – mean(rewards) − α×std(rewards) (balanced)
   next_obs_all   : (n_agents, obs_dim)
   next_global_state: (global_state_dim,)
   done           : float                      – 1.0 nếu episode kết thúc
@@ -101,7 +101,7 @@ class JointReplayBuffer:
             obs_all          : Local obs của TẤT CẢ agents, shape (n_agents, obs_dim).
             actions_all      : Hành động của TẤT CẢ agents, shape (n_agents,).
             global_state     : Global state vector, shape (global_state_dim,).
-            joint_reward     : Mean reward toàn cục của bước này.
+            joint_reward     : Balanced joint reward = mean(rewards) − α×std(rewards).
             next_obs_all     : Local obs tiếp theo, shape (n_agents, obs_dim).
             next_global_state: Global state tiếp theo, shape (global_state_dim,).
             done             : True nếu episode kết thúc.

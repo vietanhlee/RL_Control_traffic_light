@@ -1,26 +1,20 @@
 import asyncio
+import math
 from dataclasses import asdict
 from traffic_light.fixed_time import LightColor
 import app.core.config as config
 from app.core.config import engine_lock, active_connections, logger
 from config.constants import (
     SIMULATION_DT_SECONDS,
-    REWARD_OFFSET,
-    WEIGHT_QUEUE,
-    WEIGHT_IMBALANCE,
-    WEIGHT_RED_PRESSURE,
-    WEIGHT_SWITCH_PENALTY,
-    WEIGHT_SPEED_BONUS,
-    SCALE_QUEUE,
-    SCALE_IMBALANCE,
-    SCALE_RED_PRESSURE,
-    SCALE_SPEED,
-    REWARD_CLIP,
+    GLOBAL_IMBALANCE_WEIGHT,
 )
+from config.reward_fn import compute_intersection_reward
 
 def calculate_intersection_reward(engine_inst, intersection_id: int, time_s: float, light_states_dict: dict = None) -> dict:
     """
-    Tính toán tập trung Reward và các chỉ số chẩn đoán (Penalties, Pct) cho một nút giao.
+    Thu thập metrics thô từ engine, sau đó gọi compute_intersection_reward()
+    để tính reward. Kết quả được serialise thành dict để FE render.
+
     Được dùng chung cho cả simulation loop và API Endpoint.
     """
     intersection = engine_inst.intersections[intersection_id]
@@ -29,66 +23,64 @@ def calculate_intersection_reward(engine_inst, intersection_id: int, time_s: flo
     queues = []
     avg_speed = 0.0
     direction_count = 0
-    
+
     for incoming in intersection.incoming_nodes:
         metrics = engine_inst.collector.snapshot_direction((intersection_id, incoming), time_s)
         q_val = metrics.motorcycle.queue_length + metrics.car.queue_length
         total_queue += q_val
         queues.append(q_val)
-        
+
         avg_speed += (metrics.motorcycle.avg_speed + metrics.car.avg_speed) / 2.0
         direction_count += 1
-        
-        # Xác định xem đèn có đỏ hay không
+
+        # Xác định đèn đỏ hay không
         if light_states_dict is not None:
             is_red = light_states_dict.get((intersection_id, incoming)) == LightColor.RED
         else:
             is_red = intersection.light_for(time_s, incoming) == LightColor.RED
-            
+
         if is_red and q_val > 0.0:
             red_pressure += q_val
-            
+
     if direction_count:
         avg_speed /= direction_count
-        
+
     avg_q = sum(queues) / len(queues) if queues else 0.0
     imbalance = sum(abs(q - avg_q) for q in queues)
-    
-    # Switch penalty
+
     switched = (time_s - engine_inst.last_switch_time.get(intersection_id, -9999.0)) < 1.1
-    switch_penalty_val = WEIGHT_SWITCH_PENALTY if switched else 0.0
-    
-    # Tính toán penalty & bonus thực tế
-    queue_penalty = WEIGHT_QUEUE * (total_queue / SCALE_QUEUE)
-    imbalance_penalty = WEIGHT_IMBALANCE * (imbalance / SCALE_IMBALANCE)
-    red_pressure_penalty = WEIGHT_RED_PRESSURE * (red_pressure / SCALE_RED_PRESSURE)
-    speed_bonus_val = WEIGHT_SPEED_BONUS * (avg_speed / SCALE_SPEED)
-    
-    cost = queue_penalty + imbalance_penalty + red_pressure_penalty + switch_penalty_val - speed_bonus_val
-    reward = max(-REWARD_CLIP, min(REWARD_CLIP, REWARD_OFFSET - cost))
-    
+
+    # ── Gọi hàm tính reward từ module dùng chung ────────────────────────
+    rc = compute_intersection_reward(
+        queue_total=total_queue,
+        imbalance=imbalance,
+        red_pressure=red_pressure,
+        speed_avg=avg_speed,
+        switched=switched,
+    )
+
     # Trả về đầy đủ các trường để Frontend chỉ việc render
     return {
-        "queue_length": total_queue,
-        "queue_penalty": queue_penalty,
-        "queue_pct": min((total_queue / SCALE_QUEUE) * 100, 100),
-        
-        "imbalance": imbalance,
-        "imbalance_penalty": imbalance_penalty,
-        "imbalance_pct": min((imbalance / SCALE_IMBALANCE) * 100, 100),
-        
-        "red_pressure": red_pressure,
-        "red_pressure_penalty": red_pressure_penalty,
-        "red_pressure_pct": min((red_pressure / SCALE_RED_PRESSURE) * 100, 100),
-        
-        "switch_penalty": switch_penalty_val,
-        
-        "speed_avg": avg_speed,
-        "speed_bonus": speed_bonus_val,
-        "speed_pct": min((avg_speed / SCALE_SPEED) * 100, 100),
-        
-        "cost": cost,
-        "reward": reward,
+        "queue_length":        total_queue,
+        "queue_penalty":       rc.queue_penalty,
+        "queue_pct":           rc.queue_pct,
+
+        "imbalance":           imbalance,
+        "imbalance_penalty":   rc.imbalance_penalty,
+        "imbalance_pct":       rc.imbalance_pct,
+
+        "red_pressure":        red_pressure,
+        "red_pressure_penalty": rc.red_pressure_penalty,
+        "red_pressure_pct":    rc.red_pressure_pct,
+
+        "switch_penalty":      rc.switch_penalty,
+
+        "speed_avg":           avg_speed,
+        "speed_bonus":         rc.speed_bonus,
+        "speed_pct":           rc.speed_pct,
+
+        "cost":                rc.cost,
+        "reward":              rc.reward,
     }
 
 async def simulation_loop():
@@ -113,8 +105,7 @@ async def simulation_loop():
 
             if active_connections and snapshot is not None and rl_state_dict is not None:
                 intersection_rewards = {}
-                global_reward = 0.0
-                
+
                 # Trích xuất light states
                 light_states_dict = {
                     (inter, inc): color 
@@ -129,9 +120,22 @@ async def simulation_loop():
                         light_states_dict
                     )
                     intersection_rewards[intersection_id] = res
-                    global_reward += res["reward"]
-                
-                avg_global_reward = global_reward / max(len(current_engine.intersections), 1)
+
+                # ── Tính Global Reward cân bằng mạng ───────────────────────
+                # Công thức: global = mean(rewards) - α × std(rewards)
+                # std lớn → các nút chênh lệch nhau nhiều → bị phạt thêm
+                reward_values = [r["reward"] for r in intersection_rewards.values()]
+                n = len(reward_values)
+                if n > 0:
+                    mean_reward = sum(reward_values) / n
+                    variance = sum((r - mean_reward) ** 2 for r in reward_values) / n
+                    std_reward = math.sqrt(variance)
+                else:
+                    mean_reward = 0.0
+                    std_reward = 0.0
+
+                imbalance_deduction = GLOBAL_IMBALANCE_WEIGHT * std_reward
+                avg_global_reward = mean_reward - imbalance_deduction
 
                 render_data = {
                     "time_s": snapshot.now,
@@ -145,6 +149,9 @@ async def simulation_loop():
                     ],
                     "metrics": rl_state_dict,
                     "global_reward": avg_global_reward,
+                    "global_reward_mean": mean_reward,
+                    "global_reward_std": std_reward,
+                    "global_imbalance_deduction": imbalance_deduction,
                     "reward_metrics": intersection_rewards,
                 }
 

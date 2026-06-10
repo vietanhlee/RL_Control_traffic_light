@@ -99,11 +99,7 @@ def main() -> int:
         for aid in agent_ids:
             obs = observation[aid]
             step_rewards.append(env.reward_for(obs, actions.get(aid, 0)))
-            step_queue += sum(
-                float(p.get("queue_length", 0.0))
-                for p in obs.get("directions", {}).values()
-                if isinstance(p, dict)
-            )
+            step_queue += float(obs.get("queue_total", 0.0))
 
         avg_queue = step_queue / max(n_agents, 1)
         joint_reward = float(np.mean(step_rewards))

@@ -155,11 +155,11 @@ WEIGHT_IMBALANCE = 8.0
 
 # Trọng số phạt xe phải chờ ở làn đang đèn Đỏ (Red Pressure).
 # - ẢNH HƯỞNG: Giá trị cao giúp chống hiện tượng "bỏ đói" (starvation) các làn ít xe. Đèn đỏ có xe chờ quá lâu sẽ buộc phải chuyển xanh.
-WEIGHT_RED_PRESSURE = 6.0
+WEIGHT_RED_PRESSURE = 6.5
 
 # Hình phạt cố định mỗi khi nút giao đổi pha đèn (từ Xanh -> Đỏ).
 # - ẢNH HƯỞNG: Ngăn chặn tình trạng nhảy đèn liên tục (flapping). Giá trị cao giữ pha ổn định lâu hơn.
-WEIGHT_SWITCH_PENALTY = 5.5
+WEIGHT_SWITCH_PENALTY = 6
 
 # Điểm thưởng dựa trên vận tốc trung bình của các xe trong khu vực nút giao.
 # - ẢNH HƯỞNG: Khuyến khích tối ưu luồng xe chạy mượt mà, không bị dừng đỗ hẳn.
@@ -184,3 +184,10 @@ SCALE_SPEED = 29.0
 
 # Giới hạn giá trị Reward trong khoảng [-REWARD_CLIP, +REWARD_CLIP] để ổn định gradient khi train.
 REWARD_CLIP = 10.0
+
+# ─── Hệ số phạt Imbalance Reward toàn mạng ──────────────────────────────────────
+# Global Reward cuối cùng = mean(rewards) - GLOBAL_IMBALANCE_WEIGHT * std(rewards)
+# - Nếu các nút có reward đồng đều: std ≈ 0 → không bị phạt thêm.
+# - Nếu một vài nút bị tắc nghẽn nặng trong khi các nút khác tốt: std lớn → phạt nặng.
+# - Khuyến khích Agent cân bằng tải cho toàn mạng thay vì chỉ tối ưu cục bộ từng nút.
+GLOBAL_IMBALANCE_WEIGHT = 0.3

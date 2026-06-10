@@ -671,6 +671,10 @@ export default function App() {
         ) / Math.max(Object.values(selectedMetrics.directions).length, 1)
       : 0;
   const globalImbalance = metrics?.metrics?.global_imbalance ?? 0;
+  // Dữ liệu global reward breakdown từ BE (decoupled)
+  const globalRewardMean = metrics?.global_reward_mean ?? 0;
+  const globalRewardStd  = metrics?.global_reward_std  ?? 0;
+  const globalImbalanceDeduction = metrics?.global_imbalance_deduction ?? 0;
   const availableNodes = networkData ? Object.keys(networkData.nodes) : [];
 
   // Lấy rewardMetrics trực tiếp từ WebSocket real-time
@@ -703,6 +707,11 @@ export default function App() {
                     className={`mt-0.5 text-sm font-bold ${(metrics?.global_reward ?? 0) >= 0 ? "text-emerald-400" : "text-rose-400"}`}
                   >
                     {(metrics?.global_reward ?? 0).toFixed(2)}
+                  </div>
+                  {/* Breakdown tooltip dạng mini */}
+                  <div className="mt-0.5 text-[7px] text-slate-500 leading-tight">
+                    <span className="text-slate-400">{globalRewardMean.toFixed(2)}</span>
+                    <span className="text-rose-500"> − {globalImbalanceDeduction.toFixed(2)}</span>
                   </div>
                 </div>
                 <Gauge className="h-3.5 w-3.5 text-cyan-400" />
@@ -756,14 +765,17 @@ export default function App() {
                 <Car className="h-3.5 w-3.5 text-violet-400" />
               </div>
 
-              {/* Card 4: Global Imbalance */}
+              {/* Card 4: Network Reward Std (Imbalance) */}
               <div className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950/85 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-amber-500/40 shadow-inner">
                 <div>
                   <div className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold">
-                    Global Imbalance
+                    Reward Std
                   </div>
-                  <div className="mt-0.5 text-sm font-bold text-amber-400">
-                    {globalImbalance.toFixed(1)}
+                  <div className={`mt-0.5 text-sm font-bold ${globalRewardStd > 3 ? "text-rose-400" : globalRewardStd > 1.5 ? "text-amber-400" : "text-emerald-400"}`}>
+                    {globalRewardStd.toFixed(2)}
+                  </div>
+                  <div className="mt-0.5 text-[7px] text-slate-500 leading-tight">
+                    α×σ={globalImbalanceDeduction.toFixed(2)}
                   </div>
                 </div>
                 <Activity className="h-3.5 w-3.5 text-amber-400" />
