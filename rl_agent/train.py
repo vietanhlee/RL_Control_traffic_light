@@ -33,9 +33,9 @@ from typing import Any
 import numpy as np
 from tqdm import tqdm
 
-from rl_agent.traffic_rl.agent import QMIXAgent
-from rl_agent.traffic_rl.client import ApiError, TrafficApiClient
-from rl_agent.traffic_rl.config import (
+from traffic_rl.agent import QMIXAgent
+from traffic_rl.client import ApiError, TrafficApiClient
+from traffic_rl.config import (
     DEFAULT_BASE_URL,
     DEFAULT_BATCH_SIZE,
     DEFAULT_BUFFER_CAPACITY,
@@ -55,8 +55,8 @@ from rl_agent.traffic_rl.config import (
     DEFAULT_TARGET_UPDATE_FREQ,
     GLOBAL_IMBALANCE_WEIGHT,
 )
-from rl_agent.traffic_rl.environment import TrafficEnvironment
-from rl_agent.traffic_rl.features import build_features
+from traffic_rl.environment import TrafficEnvironment
+from traffic_rl.features import build_features
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -160,6 +160,8 @@ def main() -> int:
         args.model_path,
         default_n_agents=n_agents,
         default_obs_dim=obs_dim,
+        layout=env.intersection_layout,
+        connections=env.intersection_connections,
         learning_rate=args.lr,
         gamma=args.gamma,
         epsilon=args.epsilon,

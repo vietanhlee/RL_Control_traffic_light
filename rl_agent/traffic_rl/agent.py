@@ -161,6 +161,8 @@ class QMIXAgent:
         self,
         n_agents: int,
         obs_dim: int,
+        layout: dict[int, tuple[float, float]] | None = None,
+        connections: list[tuple[int, int, int]] | None = None,
         learning_rate: float = 0.0005,
         gamma: float = 0.96,
         epsilon: float = 1.0,
@@ -214,11 +216,16 @@ class QMIXAgent:
         
         raw_weights = []
         edges_list = []
-        for u, v, lanes in INTERSECTION_CONNECTIONS:
+        conn = connections if connections is not None else []
+        lay = layout if layout is not None else {}
+        
+        for u, v, lanes in conn:
             if u < n_agents and v < n_agents:
                 # Tính khoảng cách Euclidean giữa 2 nút giao
-                dx = INTERSECTION_LAYOUT[v][0] - INTERSECTION_LAYOUT[u][0]
-                dy = INTERSECTION_LAYOUT[v][1] - INTERSECTION_LAYOUT[u][1]
+                pos_u = lay.get(u, (0.0, 0.0))
+                pos_v = lay.get(v, (0.0, 0.0))
+                dx = pos_v[0] - pos_u[0]
+                dy = pos_v[1] - pos_u[1]
                 dist = math.hypot(dx, dy)
                 
                 # Trọng số gốc tỉ lệ thuận với số làn xe, tỉ lệ nghịch với khoảng cách
@@ -522,6 +529,8 @@ class QMIXAgent:
             agent = cls(
                 n_agents=int(payload["n_agents"]),
                 obs_dim=int(payload["obs_dim"]),
+                layout=kwargs.get("layout"),
+                connections=kwargs.get("connections"),
                 learning_rate=kwargs.get("learning_rate", float(payload.get("learning_rate", 0.0005))),
                 gamma=kwargs.get("gamma", float(payload.get("gamma", 0.96))),
                 epsilon=kwargs.get("epsilon", float(payload.get("epsilon", 1.0))),

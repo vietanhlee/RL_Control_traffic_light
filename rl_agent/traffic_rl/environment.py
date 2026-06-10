@@ -71,6 +71,8 @@ class TrafficEnvironment:
     min_phase_hold_steps: int = 2
     intersection_ids: list[int] = field(default_factory=list)
     records: dict[int, IntersectionRecord] = field(default_factory=dict)
+    intersection_layout: dict[int, tuple[float, float]] = field(default_factory=dict)
+    intersection_connections: list[tuple[int, int, int]] = field(default_factory=list)
 
     def bootstrap(self) -> list[int]:
         """Lấy danh sách nút giao từ backend và khởi tạo records.
@@ -85,11 +87,17 @@ class TrafficEnvironment:
         """
         network = self.client.get_network()
         nodes = network.get("nodes", {})
+        edges = network.get("edges", [])
         if not isinstance(nodes, dict) or not nodes:
             raise RuntimeError("Backend network response is empty")
 
         self.intersection_ids = sorted(int(node_id) for node_id in nodes.keys())
         self.records = {intersection_id: IntersectionRecord() for intersection_id in self.intersection_ids}
+        
+        # Lưu layout (x, y) và các kết nối để phục vụ cho GMIX GNN
+        self.intersection_layout = {int(k): (float(v["x"]), float(v["y"])) for k, v in nodes.items()}
+        self.intersection_connections = [(int(e["start"]), int(e["end"]), int(e["lanes"])) for e in edges]
+        
         return self.intersection_ids
 
     def reset(self) -> None:
