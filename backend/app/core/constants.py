@@ -86,7 +86,7 @@ SCALE_RED_PRESSURE = 80.0
 SCALE_SPEED = 29.0
 
 # Giới hạn giá trị Reward trong khoảng [-REWARD_CLIP, +REWARD_CLIP]
-REWARD_CLIP = 10.0
+REWARD_CLIP = 20.0
 
 # ─── Hệ số phạt Imbalance Reward toàn mạng ──────────────────────────────────────
-GLOBAL_IMBALANCE_WEIGHT = 0.45
+GLOBAL_IMBALANCE_WEIGHT = 0.65
