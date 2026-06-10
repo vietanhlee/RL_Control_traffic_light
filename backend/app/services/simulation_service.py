@@ -149,6 +149,9 @@ async def simulation_loop():
 
                 imbalance_deduction = GLOBAL_IMBALANCE_WEIGHT * std_reward
                 avg_global_reward = mean_reward - imbalance_deduction
+                
+                # Tính toán tổng hàng chờ toàn mạng (global queue)
+                global_queue = sum(r["queue_length"] for r in intersection_rewards.values())
 
                 render_data = {
                     "time_s": snapshot.now,
@@ -165,6 +168,7 @@ async def simulation_loop():
                     "global_reward_mean": mean_reward,
                     "global_reward_std": std_reward,
                     "global_imbalance_deduction": imbalance_deduction,
+                    "global_queue": global_queue,
                     "reward_metrics": intersection_rewards,
                 }
 
