@@ -97,5 +97,5 @@ class RoadNetwork:
         return list(self.adjacency[node_id])
 
     def is_boundary_node(self, node_id: int) -> bool:
-        # A boundary node in our grid topology is one with fewer than 4 connections.
-        return len(self.adjacency[node_id]) < 4
+        # A boundary node in our grid topology is one with fewer than 3 connections (corners).
+        return len(self.adjacency[node_id]) <= 2

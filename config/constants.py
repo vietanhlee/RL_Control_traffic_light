@@ -8,35 +8,41 @@ from .environment import load_dotenv
 
 load_dotenv()
 
-NUM_INTERSECTIONS = 16
-SIMULATION_DT_SECONDS = 0.1
-GUI_REFRESH_MS = 50
-METRICS_WINDOW_SECONDS = 30.0
-DENSITY_SAMPLE_SECONDS = 1.0
-DB_FLUSH_SECONDS = 5.0
-SPAWN_INTERVAL_SECONDS = 0.8
+# ─── Thông số Mô phỏng cơ bản ──────────────────────────────────────────────────
+NUM_INTERSECTIONS = 16          # Tổng số nút giao thông tự động trong mạng lưới (mạng 4x4)
+SIMULATION_DT_SECONDS = 0.1     # Bước thời gian vật lý của simulation (mỗi tick mô phỏng chạy 0.1 giây)
+GUI_REFRESH_MS = 50             # Tốc độ làm mới giao diện người dùng (50ms gửi data cập nhật UI một lần)
+METRICS_WINDOW_SECONDS = 30.0   # Cửa sổ thời gian (giây) dùng để tính trung bình trượt các chỉ số (vận tốc, mật độ)
+DENSITY_SAMPLE_SECONDS = 1.0    # Chu kỳ lấy mẫu mật độ giao thông (mỗi 1 giây lấy mẫu một lần)
+DB_FLUSH_SECONDS = 5.0          # Chu kỳ đẩy dữ liệu log (metrics) xuống cơ sở dữ liệu PostgreSQL (mỗi 5 giây)
+SPAWN_INTERVAL_SECONDS = 0.8    # Khoảng thời gian mặc định giữa các lần sinh xe (bị ghi đè bởi sóng sinh xe động)
 
-ZONE_LENGTH_METERS = 100.0
-BOUNDARY_DISTANCE_METERS = 40.0
-STOP_LINE_DISTANCE_METERS = 8.0
-QUEUE_SPEED_THRESHOLD = 9
+# ─── Kích thước và Quy tắc Nút giao ──────────────────────────────────────────────
+ZONE_LENGTH_METERS = 500.0      # Chiều dài vùng đo lường (m) trước ngã tư để tính mật độ và hàng chờ của làn xe đó
+BOUNDARY_DISTANCE_METERS = 40.0 # Khoảng cách an toàn tối thiểu từ biên bản đồ (m)
+STOP_LINE_DISTANCE_METERS = 8.0 # Khoảng cách vạch dừng xe (m) cách tâm giao lộ
+QUEUE_SPEED_THRESHOLD = 9       # Ngưỡng vận tốc (m/s) – Xe chạy dưới 9 m/s (~32.4 km/h) sẽ bị coi là đang kẹt/chờ hàng dài
 
-DEFAULT_TARGET_VEHICLE_COUNT = 90
-DEFAULT_MIN_SPEED_MPS = 12.0
-DEFAULT_MAX_SPEED_MPS = 32.0
-DEFAULT_MAX_ACCELERATION = 4.0
-DEFAULT_MAX_DECELERATION = 7.0
-DEFAULT_SAFE_GAP_METERS = 10.0
+# ─── Thông số Phương tiện mặc định ──────────────────────────────────────────────
+DEFAULT_TARGET_VEHICLE_COUNT = 90  # Số lượng xe mục tiêu trong mạng (đang bị ghi đè bởi sóng sinh xe hình sin động)
+DEFAULT_MIN_SPEED_MPS = 12.0       # Tốc độ tối thiểu của xe (m/s) (~43.2 km/h)
+DEFAULT_MAX_SPEED_MPS = 32.0       # Tốc độ tối đa của xe (m/s) (~115.2 km/h)
+DEFAULT_MAX_ACCELERATION = 4.0     # Gia tốc tăng tốc lớn nhất của phương tiện (m/s²)
+DEFAULT_MAX_DECELERATION = 7.0     # Gia tốc phanh/giảm tốc lớn nhất của phương tiện (m/s²)
+DEFAULT_SAFE_GAP_METERS = 10.0     # Khoảng cách an toàn tối thiểu (m) giữa 2 xe nối đuôi nhau
 
+# Tỷ lệ hướng rẽ mặc định tại các nút giao (Trái, Đi thẳng, Phải)
 DEFAULT_TURN_DISTRIBUTION = {
     "left": 0.1,
     "straight": 0.75,
     "right": 0.15,
 }
 
-DEFAULT_LIGHT_GREEN_SECONDS = 50.0
-DEFAULT_LIGHT_YELLOW_SECONDS = 5.0
-DEFAULT_LIGHT_RED_SECONDS = 60.0
+# ─── Cấu hình Đèn tín hiệu mặc định (khi không chạy RL) ─────────────────────────
+DEFAULT_LIGHT_GREEN_SECONDS = 50.0  # Thời gian đèn XANH mặc định (giây)
+DEFAULT_LIGHT_YELLOW_SECONDS = 5.0  # Thời gian đèn VÀNG mặc định (giây)
+DEFAULT_LIGHT_RED_SECONDS = 60.0    # Thời gian đèn ĐỎ mặc định (giây)
+
 
 
 def _build_database_url() -> str:
@@ -133,16 +139,48 @@ class SimulationConfig:
         return {k: v / total for k, v in distribution.items()}
 
 
-# Cấu hình Reward & Trọng số RL (Đồng bộ với Agent)
-REWARD_OFFSET = 5
-WEIGHT_QUEUE = 3.0           # Giữ nguyên của bạn (Rất tốt để ưu tiên giải tỏa)
-WEIGHT_IMBALANCE = 4.0       # Giữ nguyên của bạn (Rất tốt cho traffic lệch)
-WEIGHT_RED_PRESSURE = 1.5    # Tăng lên để chống "bỏ đói" nhánh ít xe
-WEIGHT_SWITCH_PENALTY = 3.0  # Tăng lên để chống giật/đổi đèn liên tục
-WEIGHT_SPEED_BONUS = 0.08   # Giữ nguyên của bạn
+# ─── Cấu hình Reward & Trọng số RL ──────────────────────────────────────────────
+# (Tất cả tham số dưới đây được đồng bộ tự động sang lớp RewardWeights của Agent)
 
-SCALE_QUEUE = 9.0
-SCALE_IMBALANCE = 5.0
-SCALE_RED_PRESSURE = 10.0
+# Offset cơ sở để giữ Reward ở mức dương khi giao thông thông thoáng (tránh điểm âm hoàn toàn)
+REWARD_OFFSET = 5
+
+# Trọng số phạt tổng số xe đang xếp hàng chờ (queue) ở tất cả các làn vào.
+# - ẢNH HƯỞNG: Giá trị càng cao, Agent càng ưu tiên giải tỏa nhanh mọi hàng chờ.
+WEIGHT_QUEUE = 3.5
+
+# Trọng số phạt sự mất cân bằng hàng chờ giữa các hướng (ví dụ: hướng Bắc chờ 20 xe, hướng Tây chờ 0 xe).
+# - ẢNH HƯỞNG: Giá trị cao thúc đẩy Agent phân bổ thời gian đèn đều cho các hướng, tránh việc một hướng bị tắc cứng.
+WEIGHT_IMBALANCE = 4.5
+
+# Trọng số phạt xe phải chờ ở làn đang đèn Đỏ (Red Pressure).
+# - ẢNH HƯỞNG: Giá trị cao giúp chống hiện tượng "bỏ đói" (starvation) các làn ít xe. Đèn đỏ có xe chờ quá lâu sẽ buộc phải chuyển xanh.
+WEIGHT_RED_PRESSURE = 3.0
+
+# Hình phạt cố định mỗi khi nút giao đổi pha đèn (từ Xanh -> Đỏ).
+# - ẢNH HƯỞNG: Ngăn chặn tình trạng nhảy đèn liên tục (flapping). Giá trị cao giữ pha ổn định lâu hơn.
+WEIGHT_SWITCH_PENALTY = 3.0
+
+# Điểm thưởng dựa trên vận tốc trung bình của các xe trong khu vực nút giao.
+# - ẢNH HƯỞNG: Khuyến khích tối ưu luồng xe chạy mượt mà, không bị dừng đỗ hẳn.
+WEIGHT_SPEED_BONUS = 0.08
+
+
+# ─── Hệ số chuẩn hóa (Scale Factors) ──────────────────────────────────────────
+# Dùng để đưa các giá trị thực tế (số xe, tốc độ) về khoảng [0, 1] trước khi nhân trọng số.
+# Giúp tránh lỗi bão hòa Reward (Reward Saturation) khi lượng xe trong simulation quá lớn (~1760 xe).
+
+# Hệ số chia chuẩn hóa cho tổng hàng chờ. (Công thức: queue_total / SCALE_QUEUE)
+SCALE_QUEUE = 100.0
+
+# Hệ số chia chuẩn hóa cho độ lệch hàng chờ giữa các hướng.
+SCALE_IMBALANCE = 50.0
+
+# Hệ số chia chuẩn hóa cho hàng chờ ở làn đèn đỏ.
+SCALE_RED_PRESSURE = 100.0
+
+# Hệ số chia chuẩn hóa cho tốc độ trung bình (thường chia cho tốc độ tối đa của xe).
 SCALE_SPEED = 29.0
+
+# Giới hạn giá trị Reward trong khoảng [-REWARD_CLIP, +REWARD_CLIP] để ổn định gradient khi train.
 REWARD_CLIP = 5.0
