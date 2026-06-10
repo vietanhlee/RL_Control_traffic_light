@@ -1,5 +1,5 @@
-from metrics.calculator import MetricsCalculator
-from metrics.collector import DirectionMetrics, GroupMetrics
+from models.metrics.calculator import MetricsCalculator
+from models.metrics.collector import DirectionMetrics, GroupMetrics
 
 
 def test_local_imbalance_formula():

@@ -1,4 +1,4 @@
-from simulation.road import RoadNetwork
+from models.simulation.road import RoadNetwork
 
 
 def test_shortest_path_exists():

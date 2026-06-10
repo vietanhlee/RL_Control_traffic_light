@@ -1,4 +1,4 @@
-from traffic_light.fixed_time import LightColor, SignalTiming
+from models.traffic_light.fixed_time import LightColor, SignalTiming
 
 
 def test_cycle_time_sum():

@@ -1,11 +1,5 @@
-import sys
-from pathlib import Path
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "RL model"))
-
-from traffic_rl.agent import QMIXAgent
-from traffic_rl.features import build_features
+from rl_agent.traffic_rl.agent import QMIXAgent
+from rl_agent.traffic_rl.features import build_features
 
 
 def test_feature_vector_has_stable_size():

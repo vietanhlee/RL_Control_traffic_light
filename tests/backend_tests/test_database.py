@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from database.repository import PostgresRepository, create_repository
+from db.repository import PostgresRepository, create_repository
 
 
 @dataclass
@@ -78,7 +78,7 @@ def test_postgres_repository_roundtrip(monkeypatch):
     def fake_connect(url, autocommit=False):
         return FakeConnection(state)
 
-    monkeypatch.setattr("database.repository.psycopg.connect", fake_connect)
+    monkeypatch.setattr("db.repository.psycopg.connect", fake_connect)
 
     repo = PostgresRepository("postgresql://traffic_user:pw@localhost:5432/traffic_simulator?sslmode=prefer")
     repo.save_light_config(1, 2, 11.0, 3.0, 16.0)
