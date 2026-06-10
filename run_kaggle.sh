@@ -13,10 +13,19 @@ fi
 # Chuyển vào thư mục dự án
 cd RL_Control_traffic_light || exit
 
-echo "=== 2. Installing dependencies ==="
+echo "=== 2. Activating virtual environment if available ==="
+if [ -f ".venv/bin/activate" ]; then
+    source .venv/bin/activate
+elif [ -f ".venv/Scripts/activate" ]; then
+    source .venv/Scripts/activate
+else
+    echo "No virtual environment found, continuing with system Python."
+fi
+
+echo "=== 3. Installing dependencies ==="
 pip install -r requirements.txt
 
-echo "=== 3. Installing and configuring PostgreSQL ==="
+echo "=== 4. Installing and configuring PostgreSQL ==="
 apt-get update -qq
 apt-get install -y postgresql postgresql-contrib
 
@@ -38,7 +47,7 @@ service postgresql restart
 # Kiểm tra port 5433
 pg_isready -h localhost -p 5433
 
-echo "=== 4. Creating .env file ==="
+echo "=== 5. Creating .env file ==="
 cat <<EOF > .env
 # PostgreSQL connection settings for the traffic simulator
 # Fill DB_PASSWORD before running the backend.
@@ -55,7 +64,7 @@ DATABASE_URL=
 EOF
 echo ".env created successfully."
 
-echo "=== 5. Testing PostgreSQL connection ==="
+echo "=== 6. Testing PostgreSQL connection ==="
 python -c "
 import psycopg2
 try:
@@ -72,19 +81,22 @@ except Exception as e:
     print('Connection failed:', e)
     exit(1)
 "
-
-echo "=== 6. Starting Backend (main.py) ==="
-# Khởi chạy main.py dưới dạng process ngầm (background) và đẩy log ra file
+echo "=== 7. Starting Backend (main.py) ==="
+# Chạy backend từ đúng thư mục backend/app như bạn yêu cầu.
+cd backend/app || exit
 python -u main.py > /dev/null 2>&1 &
 MAIN_PID=$!
 echo "main.py is running in background with PID: $MAIN_PID"
 
+cd ../..
+
 echo "Waiting 120 seconds for the backend to initialize completely..."
 sleep 120
 
-echo "=== 7. Starting RL Training ==="
-# Chạy script train ở màn hình chính (foreground) để xem output
-python -u -m rl_agent.train --steps 7200
+echo "=== 8. Starting RL Training ==="
+# Chạy train từ đúng thư mục rl_agent như bạn yêu cầu.
+cd rl_agent || exit
+python -u train.py --steps 7200
 
 echo "=== Training Finished ==="
 # Dọn dẹp process backend sau khi train xong
