@@ -167,7 +167,7 @@ export default function App() {
 
     const transform = getCanvasTransform(width, height, networkData);
     if (!transform) return;
-    const { mapX, mapY, laneWidth, carScale } = transform;
+    const { mapX, mapY, laneWidth, carScale, scale } = transform;
 
 
     // Khởi tạo hoặc thay đổi kích thước offscreen canvas đệm nền tĩnh
@@ -346,14 +346,15 @@ export default function App() {
           const py = -ux;
 
           const rHW = edge.lanes * laneWidth;
-          const stopDist = R + 1.5;
+          const stopDist = R + 8.0 * scale;
           oCtx.strokeStyle = "rgba(255,255,255,0.95)"; // Sáng rõ vạch dừng
-          oCtx.lineWidth = 2.0;
+          oCtx.lineWidth = 3.5;
           oCtx.setLineDash([]);
           oCtx.beginPath();
+          // Chỉ vẽ vạch dừng trên làn đi vào (incoming lanes), không chắn làn đi ra
           oCtx.moveTo(
-            ux * stopDist + px * rHW * 0.95,
-            uy * stopDist + py * rHW * 0.95,
+            ux * stopDist,
+            uy * stopDist,
           );
           oCtx.lineTo(
             ux * stopDist - px * rHW * 0.95,
@@ -495,7 +496,14 @@ export default function App() {
             (e.start === light.incoming && e.end === light.intersection),
         );
         const lanes = edge ? edge.lanes : 1;
-        const stopLineDistance = 3 * laneWidth + 12 * carScale;
+        
+        // Tính bán kính giao lộ R tương tự như lúc vẽ tĩnh
+        const connectedEdges = networkData.edges.filter(
+          (e) => e.start === light.intersection || e.end === light.intersection,
+        );
+        const maxLanes = connectedEdges.reduce((m, e) => Math.max(m, e.lanes), 1);
+        const R = maxLanes * laneWidth * 1.15;
+        const stopLineDistance = R + 8.0 * scale;
         const sideOffset = lanes * laneWidth * 0.85;
 
         // Vẽ overlay dải màu nền trên mặt đường (chiều dài = 1/3 đoạn đường)
@@ -656,29 +664,17 @@ export default function App() {
 
   const selectedMetrics =
     metrics?.metrics?.intersections?.[selectedIntersection];
-  const totalQueue =
-    selectedMetrics && selectedMetrics.directions
-      ? Object.values(selectedMetrics.directions).reduce(
-          (acc, curr) => acc + curr.queue_length,
-          0,
-        )
-      : 0;
-  const selectedAverageSpeed =
-    selectedMetrics && selectedMetrics.directions
-      ? Object.values(selectedMetrics.directions).reduce(
-          (acc, curr) => acc + curr.avg_speed,
-          0,
-        ) / Math.max(Object.values(selectedMetrics.directions).length, 1)
-      : 0;
+  // Lấy rewardMetrics trực tiếp từ WebSocket real-time làm dữ liệu nguồn duy nhất
+  const rewardMetrics = metrics?.reward_metrics?.[selectedIntersection];
+  const totalQueue = rewardMetrics?.queue_length ?? 0;
+  const selectedAverageSpeed = rewardMetrics?.speed_avg ?? 0;
+  
   const globalImbalance = metrics?.metrics?.global_imbalance ?? 0;
   // Dữ liệu global reward breakdown từ BE (decoupled)
   const globalRewardMean = metrics?.global_reward_mean ?? 0;
   const globalRewardStd  = metrics?.global_reward_std  ?? 0;
   const globalImbalanceDeduction = metrics?.global_imbalance_deduction ?? 0;
   const availableNodes = networkData ? Object.keys(networkData.nodes) : [];
-
-  // Lấy rewardMetrics trực tiếp từ WebSocket real-time
-  const rewardMetrics = metrics?.reward_metrics?.[selectedIntersection];
 
   return (
     <div className="min-h-screen bg-[#030712] text-slate-100 selection:bg-cyan-400/30 selection:text-white">
@@ -724,17 +720,7 @@ export default function App() {
                     Global Queue
                   </div>
                   <div className="mt-0.5 text-sm font-bold text-rose-400">
-                    {metrics?.metrics?.intersections
-                      ? Object.values(metrics.metrics.intersections).reduce(
-                          (sumInter, inter) =>
-                            sumInter +
-                            Object.values(inter.directions).reduce(
-                              (sumDir, dir) => sumDir + dir.queue_length,
-                              0,
-                            ),
-                          0,
-                        )
-                      : 0}
+                    {metrics?.global_queue ?? 0}
                   </div>
                 </div>
                 <TriangleAlert className="h-3.5 w-3.5 text-rose-400" />
