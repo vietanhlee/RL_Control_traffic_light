@@ -141,7 +141,7 @@ Lưu transitions vào buffer, sample ngẫu nhiên → phá vỡ temporal correl
 
 ```python
 DEFAULT_LR               = 0.0005
-DEFAULT_GAMMA            = 0.96
+DEFAULT_GAMMA            = 0.98
 DEFAULT_EPSILON          = 1.0
 DEFAULT_MIN_EPSILON      = 0.05
 DEFAULT_EPSILON_DECAY    = 0.9995
@@ -155,7 +155,7 @@ DEFAULT_MIXING_HIDDEN_DIM = 32
 ### 5.4. Files Cấu Thành
 
 ```
-RL model/
+rl_agent/
 ├── train.py                      ← Vòng lặp training QMIX
 ├── evaluate.py                   ← Đánh giá policy đã train
 ├── artifacts/
@@ -163,7 +163,7 @@ RL model/
 └── traffic_rl/
     ├── agent.py                  ← QMIXAgent (chính)
     ├── mixing_net.py             ← MixingNetwork (hypernetwork)
-    ← joint_buffer.py            ← JointReplayBuffer
+    ├── joint_buffer.py           ← JointReplayBuffer
     ├── environment.py            ← TrafficEnvironment (observe/reward/advance)
     ├── features.py               ← build_features() (local obs → feature vector)
     ├── client.py                 ← REST API client
@@ -209,14 +209,15 @@ Bước 5 (tương lai):  QPLEX hoặc MAPPO để so sánh
 
 ### Chạy training mới
 ```bash
-cd "g:\Simulator traffic\RL model"
-..\.venv\Scripts\python.exe train.py --steps 5000
+# Đứng từ thư mục gốc dự án
+.venv\Scripts\python -m rl_agent.train --steps 5000
 ```
 
 ### Fine-tune từ checkpoint
 ```bash
-..\.venv\Scripts\python.exe train.py \
-  --model-path artifacts/qmix_agent.pth \
+# Đứng từ thư mục gốc dự án
+.venv\Scripts\python -m rl_agent.train \
+  --model-path rl_agent/artifacts/qmix_agent.pth \
   --steps 2000 \
   --epsilon 0.1 \
   --lr 0.0002 \
@@ -225,8 +226,9 @@ cd "g:\Simulator traffic\RL model"
 
 ### Evaluate policy
 ```bash
-..\.venv\Scripts\python.exe evaluate.py \
-  --model-path artifacts/qmix_agent.pth \
+# Đứng từ thư mục gốc dự án
+.venv\Scripts\python -m rl_agent.evaluate \
+  --model-path rl_agent/artifacts/qmix_agent.pth \
   --steps 500
 ```
 
