@@ -30,6 +30,7 @@ Tham khảo:
 
 from __future__ import annotations
 
+import sys
 import random
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
+# Tự động thêm thư mục gốc của dự án vào sys.path để import được config.constants
+project_root = Path(__file__).resolve().parents[2]
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
+from config.constants import INTERSECTION_CONNECTIONS, INTERSECTION_LAYOUT
 from .joint_buffer import JointBatch, JointReplayBuffer
 from .mixing_net import MixingNetwork
 
@@ -206,12 +213,50 @@ class QMIXAgent:
         self.target_q_net.load_state_dict(self.q_net.state_dict())
         self.target_q_net.eval()
 
+        # ── Build weighted normalized adjacency matrix for GNN ─────────────
+        A = np.zeros((n_agents, n_agents), dtype=np.float32)
+        import math
+        
+        raw_weights = []
+        edges_list = []
+        for u, v, lanes in INTERSECTION_CONNECTIONS:
+            if u < n_agents and v < n_agents:
+                # Tính khoảng cách Euclidean giữa 2 nút giao
+                dx = INTERSECTION_LAYOUT[v][0] - INTERSECTION_LAYOUT[u][0]
+                dy = INTERSECTION_LAYOUT[v][1] - INTERSECTION_LAYOUT[u][1]
+                dist = math.hypot(dx, dy)
+                
+                # Trọng số gốc tỉ lệ thuận với số làn xe, tỉ lệ nghịch với khoảng cách
+                w_raw = lanes / max(dist, 1.0)
+                raw_weights.append(w_raw)
+                edges_list.append((u, v, w_raw))
+                
+        # Chuẩn hóa để trọng số trung bình giữa các cạnh kề là 1.0 (cân bằng với self-loop)
+        mean_w = np.mean(raw_weights) if raw_weights else 1.0
+        for u, v, w_raw in edges_list:
+            w_norm = w_raw / mean_w
+            A[u, v] = w_norm
+            A[v, u] = w_norm
+        
+        # Self-loops
+        A_tilde = A + np.eye(n_agents, dtype=np.float32)
+        # Degree matrix D_tilde
+        D_tilde = np.sum(A_tilde, axis=1)
+        # D_tilde^{-1/2}
+        D_tilde_inv_sqrt = np.zeros_like(D_tilde)
+        np.power(D_tilde, -0.5, where=D_tilde > 0, out=D_tilde_inv_sqrt)
+        D_inv_sqrt_mat = np.diag(D_tilde_inv_sqrt)
+        # Normalized Adjacency A_hat = D^{-1/2} * A_tilde * D^{-1/2}
+        A_hat = D_inv_sqrt_mat @ A_tilde @ D_inv_sqrt_mat
+        
+        self.adj = torch.from_numpy(A_hat).float().to(self.device)
+
         # ── Mixing Networks ────────────────────────────────────────────────
         self.mixing_net = MixingNetwork(
-            n_agents, self.global_state_dim, mixing_hidden_dim
+            n_agents, obs_dim, mixing_hidden_dim, adj=self.adj
         ).to(self.device)
         self.target_mixing_net = MixingNetwork(
-            n_agents, self.global_state_dim, mixing_hidden_dim
+            n_agents, obs_dim, mixing_hidden_dim, adj=self.adj
         ).to(self.device)
         self.target_mixing_net.load_state_dict(self.mixing_net.state_dict())
         self.target_mixing_net.eval()

@@ -41,7 +41,7 @@ DEFAULT_HISTORY_WINDOW = 32               # Cửa sổ tính moving average
 # ─── QMIX Hyperparameters ─────────────────────────────────────────────────────
 DEFAULT_N_AGENTS = 16                     # Số agents = số nút giao thông
 DEFAULT_LR = 0.0005                       # Learning rate (Adam)
-DEFAULT_GAMMA = 0.96                      # Discount factor γ
+DEFAULT_GAMMA = 0.98                      # Discount factor γ (Tăng từ 0.96 -> 0.98 để Agent nhìn xa trông rộng hơn)
 DEFAULT_EPSILON = 1.0                     # Epsilon exploration ban đầu
 DEFAULT_MIN_EPSILON = 0.05                # Epsilon tối thiểu
 DEFAULT_EPSILON_DECAY = 0.9995            # Hệ số suy giảm epsilon/step

@@ -190,7 +190,7 @@ export default function App() {
       const oCtx = offscreenCanvasRef.current.getContext("2d");
 
       // Xoá nền màu Slate-950 tối
-      oCtx.fillStyle = "#020617";
+      oCtx.fillStyle = "#030712";
       oCtx.fillRect(0, 0, width, height);
 
       // Vẽ toàn bộ các tuyến đường (Roads/Edges) lên offscreen canvas
@@ -207,7 +207,7 @@ export default function App() {
         const isMultiLane = edge.lanes > 2;
 
         // 1. Nền nhựa đường tối
-        oCtx.strokeStyle = "#1e293b";
+        oCtx.strokeStyle = "#0f172a";
         oCtx.lineWidth = roadWidth;
         oCtx.lineCap = "butt";
         oCtx.beginPath();
@@ -223,7 +223,7 @@ export default function App() {
           const ny = -dx / L;
 
           // 2. Lề đường ngoài (vạch liền)
-          oCtx.strokeStyle = "#475569";
+          oCtx.strokeStyle = "#64748b";
           oCtx.lineWidth = 1.5;
           oCtx.setLineDash([]);
 
@@ -240,7 +240,7 @@ export default function App() {
           oCtx.stroke();
 
           // 3. Vạch đứt phân làn trong từng chiều
-          oCtx.strokeStyle = "#334155";
+          oCtx.strokeStyle = "#475569";
           oCtx.lineWidth = 1.0;
           oCtx.setLineDash([5, 10]);
 
@@ -282,8 +282,8 @@ export default function App() {
             oCtx.lineTo(ex, ey);
             oCtx.stroke();
 
-            const halfB = barrierWidth / 2;
-            oCtx.strokeStyle = "#6b7280";
+             const halfB = barrierWidth / 2;
+            oCtx.strokeStyle = "#94a3b8"; // Tăng độ sáng viền dải phân cách
             oCtx.lineWidth = 1.0;
             oCtx.beginPath();
             oCtx.moveTo(sx + nx * halfB, sy + ny * halfB);
@@ -323,8 +323,8 @@ export default function App() {
         oCtx.save();
         oCtx.translate(cx, cy);
 
-        // Asphalt nền
-        oCtx.fillStyle = "#1e293b";
+        // Asphalt nền (Đồng bộ với mặt đường tối hơn)
+        oCtx.fillStyle = "#0f172a";
         oCtx.beginPath();
         oCtx.arc(0, 0, R, 0, Math.PI * 2);
         oCtx.fill();
@@ -347,7 +347,7 @@ export default function App() {
 
           const rHW = edge.lanes * laneWidth;
           const stopDist = R + 1.5;
-          oCtx.strokeStyle = "rgba(255,255,255,0.85)";
+          oCtx.strokeStyle = "rgba(255,255,255,0.95)"; // Sáng rõ vạch dừng
           oCtx.lineWidth = 2.0;
           oCtx.setLineDash([]);
           oCtx.beginPath();
@@ -367,7 +367,7 @@ export default function App() {
             const numStripes = edge.lanes + 1;
             const halfSpan = rHW * 0.88;
 
-            oCtx.fillStyle = "rgba(255,255,255,0.13)";
+            oCtx.fillStyle = "rgba(255,255,255,0.25)"; // Sáng rõ vạch đi bộ
             for (let s = 0; s < numStripes; s++) {
               if (s % 2 === 0) continue;
               const t0 = (s / numStripes) * 2 * halfSpan - halfSpan;
@@ -401,7 +401,7 @@ export default function App() {
         oCtx.fill();
 
         // Viền kerb
-        oCtx.strokeStyle = "rgba(71,85,105,0.6)";
+        oCtx.strokeStyle = "rgba(148,163,184,0.75)"; // Sáng rõ viền bồn ngã tư
         oCtx.lineWidth = 0.8;
         oCtx.setLineDash([]);
         oCtx.beginPath();
@@ -409,14 +409,14 @@ export default function App() {
         oCtx.stroke();
 
         // Chấm tâm node marker
-        oCtx.fillStyle = "rgba(100,116,139,0.5)";
+        oCtx.fillStyle = "rgba(148,163,184,0.6)";
         oCtx.beginPath();
         oCtx.arc(0, 0, 2.2, 0, Math.PI * 2);
         oCtx.fill();
 
         // Label số nút giao
         const fontSize = Math.max(7, laneWidth * 0.6);
-        oCtx.fillStyle = "rgba(148,163,184,0.55)";
+        oCtx.fillStyle = "rgba(241,245,249,0.9)"; // Chữ số màu trắng tinh rõ nét
         oCtx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
         oCtx.textAlign = "center";
         oCtx.textBaseline = "middle";
@@ -513,124 +513,15 @@ export default function App() {
         
         const overlayGrad = ctx.createLinearGradient(startX, startY, endX, endY);
         const baseColor = light.color === "RED" ? "239, 68, 68" : light.color === "YELLOW" ? "245, 158, 11" : "34, 197, 94";
-        overlayGrad.addColorStop(0, `rgba(${baseColor}, 0.7)`);
+        // Tăng opacity tối đa ở điểm bắt đầu (0.95) và giữ độ sáng mịn hơn (0.4 ở giữa) trước khi chuyển về 0.0
+        overlayGrad.addColorStop(0, `rgba(${baseColor}, 0.95)`);
+        overlayGrad.addColorStop(0.4, `rgba(${baseColor}, 0.4)`);
         overlayGrad.addColorStop(1, `rgba(${baseColor}, 0.0)`);
         
         ctx.strokeStyle = overlayGrad;
-        ctx.lineWidth = lanes * laneWidth * 0.95; // Hơi nhỏ hơn bề rộng làn đường một xíu để khỏi lem
+        ctx.lineWidth = lanes * laneWidth * 1.0; // Mở rộng phủ kín toàn bộ chiều rộng làn đường
         ctx.lineCap = "butt";
         ctx.stroke();
-        ctx.restore();
-
-
-        const ix = x - ux * stopLineDistance + nx * sideOffset;
-        const iy = y - uy * stopLineDistance + ny * sideOffset;
-        const lightAngle = Math.atan2(-dy, -dx);
-
-        const dimRed = "#3b0f0f";
-        const dimYellow = "#3b2a06";
-        const dimGreen = "#062a16";
-
-        ctx.save();
-        ctx.translate(ix, iy);
-        ctx.rotate(lightAngle + Math.PI / 2);
-        ctx.scale(carScale, carScale);
-
-        // Cột đèn
-        ctx.fillStyle = "#374151";
-        ctx.fillRect(-1.5, 5, 3, 14);
-        ctx.fillStyle = "#4b5563";
-        ctx.beginPath();
-        ctx.roundRect(-3, 17, 6, 2, 1);
-        ctx.fill();
-
-        // Hộp đèn bo góc
-        const bW = 9,
-          bH = 22;
-        ctx.fillStyle = "#111827";
-        ctx.shadowBlur = 0;
-        ctx.beginPath();
-        ctx.roundRect(-bW / 2, -bH / 2, bW, bH, 2.5);
-        ctx.fill();
-
-        ctx.strokeStyle = "#6b7280";
-        ctx.lineWidth = 1.0;
-        ctx.stroke();
-
-        ctx.strokeStyle = "rgba(156,163,175,0.4)";
-        ctx.lineWidth = 0.7;
-        ctx.beginPath();
-        ctx.moveTo(-bW / 2 + 1, -bH / 2 + 1);
-        ctx.lineTo(bW / 2 - 1, -bH / 2 + 1);
-        ctx.stroke();
-
-        // 3 Bóng đèn
-        const bulbR = 2.8;
-        const positions = [
-          {
-            yPos: -bH / 2 + bulbR + 1.5,
-            color: light.color === "RED" ? "#ef4444" : dimRed,
-            glow: "#ef4444",
-          },
-          {
-            yPos: 0,
-            color: light.color === "YELLOW" ? "#f59e0b" : dimYellow,
-            glow: "#f59e0b",
-          },
-          {
-            yPos: bH / 2 - bulbR - 1.5,
-            color: light.color === "GREEN" ? "#22c55e" : dimGreen,
-            glow: "#22c55e",
-          },
-        ];
-
-        positions.forEach(({ yPos, color, glow }) => {
-          const isActive =
-            color !== dimRed && color !== dimYellow && color !== dimGreen;
-
-          ctx.fillStyle = "#0a0f1a";
-          ctx.beginPath();
-          ctx.arc(0, yPos, bulbR + 0.8, 0, Math.PI * 2);
-          ctx.fill();
-
-          ctx.beginPath();
-          ctx.arc(0, yPos, bulbR, 0, Math.PI * 2);
-          if (isActive) {
-            ctx.shadowBlur = 18;
-            ctx.shadowColor = glow;
-          } else {
-            ctx.shadowBlur = 0;
-          }
-          ctx.fillStyle = color;
-          ctx.fill();
-          ctx.shadowBlur = 0;
-
-          if (isActive) {
-            ctx.fillStyle = "rgba(255,255,255,0.4)";
-            ctx.beginPath();
-            ctx.arc(-0.8, yPos - 1.1, 0.9, 0, Math.PI * 2);
-            ctx.fill();
-
-            const glowGrad = ctx.createRadialGradient(
-              0,
-              yPos,
-              bulbR,
-              0,
-              yPos,
-              bulbR * 2.5,
-            );
-            glowGrad.addColorStop(
-              0,
-              glow.replace(")", ",0.25)").replace("rgb", "rgba"),
-            );
-            glowGrad.addColorStop(1, "rgba(0,0,0,0)");
-            ctx.fillStyle = glowGrad;
-            ctx.beginPath();
-            ctx.arc(0, yPos, bulbR * 2.5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        });
-
         ctx.restore();
       }
     });
@@ -786,46 +677,26 @@ export default function App() {
   const rewardMetrics = metrics?.reward_metrics?.[selectedIntersection];
 
   return (
-    <div className="min-h-screen text-slate-100 selection:bg-cyan-400/30 selection:text-white">
+    <div className="min-h-screen bg-[#030712] text-slate-100 selection:bg-cyan-400/30 selection:text-white">
+      {/* Giảm đáng kể độ sáng mờ của background để tăng tương phản chữ */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -top-24 left-[-8rem] h-72 w-72 rounded-full bg-cyan-500/18 blur-3xl" />
-        <div className="absolute top-28 right-[-6rem] h-80 w-80 rounded-full bg-fuchsia-500/16 blur-3xl" />
-        <div className="absolute bottom-[-8rem] left-1/3 h-96 w-96 rounded-full bg-emerald-500/10 blur-3xl" />
+        <div className="absolute -top-24 left-[-8rem] h-72 w-72 rounded-full bg-cyan-500/5 blur-3xl" />
+        <div className="absolute top-28 right-[-6rem] h-80 w-80 rounded-full bg-fuchsia-500/4 blur-3xl" />
+        <div className="absolute bottom-[-8rem] left-1/3 h-96 w-96 rounded-full bg-emerald-500/3 blur-3xl" />
       </div>
 
       <div className="relative mx-auto flex min-h-screen max-w-[1600px] flex-col gap-6 px-4 py-5 sm:px-6 lg:px-8">
-        <header className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-900/35 shadow-lg backdrop-blur-xl transition-all duration-500 hover:border-cyan-500/20 select-none">
+        <header className="relative overflow-hidden rounded-2xl border border-slate-800 bg-[#0f172a]/95 shadow-2xl backdrop-blur-md transition-all duration-500 hover:border-cyan-500/30 select-none">
           {/* Viền gradient trên cùng của Header */}
-          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-500/50 to-fuchsia-500/30" />
+          <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-transparent via-cyan-500/60 to-fuchsia-500/40" />
 
-          <div className="flex flex-col gap-4 px-4 py-2 sm:px-6 sm:flex-row sm:items-center sm:justify-between">
-            {/* Cột trái: Logo, Tiêu đề và Chỉ báo Online */}
-            <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-cyan-400/20 bg-cyan-400/10 shadow-md">
-                <Server className="h-4 w-4 text-cyan-300 animate-pulse" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-bold bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent tracking-tight">
-                    Traffic RL Simulator
-                  </h1>
-                  <span className="flex items-center gap-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 text-[8px] font-bold text-emerald-400">
-                    <span className="h-1 w-1 animate-ping rounded-full bg-emerald-400" />
-                    LIVE
-                  </span>
-                </div>
-                <p className="text-[8px] font-semibold text-slate-500 uppercase tracking-widest mt-0.5">
-                  RL Control Hub
-                </p>
-              </div>
-            </div>
-
+          <div className="flex flex-col gap-4 px-4 py-2 sm:px-6 sm:flex-row sm:items-center sm:justify-center">
             {/* Cột phải: 4 card chỉ số siêu gọn */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Card 1: Global Reward */}
-              <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-slate-950/20 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-cyan-500/20">
+              <div className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950/85 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-cyan-500/40 shadow-inner">
                 <div>
-                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold">
                     Global Reward
                   </div>
                   <div
@@ -834,13 +705,13 @@ export default function App() {
                     {(metrics?.global_reward ?? 0).toFixed(2)}
                   </div>
                 </div>
-                <Gauge className="h-3.5 w-3.5 text-cyan-400/70" />
+                <Gauge className="h-3.5 w-3.5 text-cyan-400" />
               </div>
 
               {/* Card 2: Global Queue */}
-              <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-slate-950/20 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-rose-500/20">
+              <div className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950/85 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-rose-500/40 shadow-inner">
                 <div>
-                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold">
                     Global Queue
                   </div>
                   <div className="mt-0.5 text-sm font-bold text-rose-400">
@@ -857,20 +728,20 @@ export default function App() {
                       : 0}
                   </div>
                 </div>
-                <TriangleAlert className="h-3.5 w-3.5 text-rose-400/70" />
+                <TriangleAlert className="h-3.5 w-3.5 text-rose-400" />
               </div>
 
               {/* Card 3: Active Vehicles */}
-              <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-slate-950/20 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-violet-500/20">
+              <div className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950/85 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-violet-500/40 shadow-inner">
                 <div>
-                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold">
                     Active Vehicles
                   </div>
                   <div className="mt-0.5 flex items-baseline gap-1.5">
-                    <span className="text-sm font-bold text-violet-300">
+                    <span className="text-sm font-bold text-violet-400">
                       {metrics?.vehicles?.length ?? 0}
                     </span>
-                    <span className="text-[8px] text-slate-500 font-semibold tracking-normal">
+                    <span className="text-[8px] text-slate-400 font-semibold tracking-normal">
                       (
                       {metrics?.vehicles.filter(
                         (v) => v.type === "car" || v.type === "bus",
@@ -882,20 +753,20 @@ export default function App() {
                     </span>
                   </div>
                 </div>
-                <Car className="h-3.5 w-3.5 text-violet-400/70" />
+                <Car className="h-3.5 w-3.5 text-violet-400" />
               </div>
 
               {/* Card 4: Global Imbalance */}
-              <div className="group relative overflow-hidden rounded-xl border border-white/5 bg-slate-950/20 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-amber-500/20">
+              <div className="group relative overflow-hidden rounded-xl border border-slate-800 bg-slate-950/85 px-3 py-1.5 flex items-center gap-3 transition-all duration-300 hover:border-amber-500/40 shadow-inner">
                 <div>
-                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-500">
+                  <div className="text-[8px] uppercase tracking-[0.12em] text-slate-400 font-bold">
                     Global Imbalance
                   </div>
                   <div className="mt-0.5 text-sm font-bold text-amber-400">
                     {globalImbalance.toFixed(1)}
                   </div>
                 </div>
-                <Activity className="h-3.5 w-3.5 text-amber-400/70" />
+                <Activity className="h-3.5 w-3.5 text-amber-400" />
               </div>
             </div>
           </div>
@@ -903,41 +774,41 @@ export default function App() {
 
         <div className="grid grid-cols-12 gap-6">
           <main className="col-span-12 xl:col-span-8">
-            <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 shadow-[0_30px_80px_rgba(2,6,23,0.45)] backdrop-blur-xl">
-              <div className="flex flex-col gap-4 border-b border-white/10 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+            <section className="overflow-hidden rounded-[2rem] border border-slate-800 bg-[#0f172a]/60 shadow-2xl">
+              <div className="flex flex-col gap-4 border-b border-slate-800 px-5 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
-                    <Activity className="h-5 w-5 text-cyan-300" />
+                    <Activity className="h-5 w-5 text-cyan-400" />
                     Live Network Map
                   </h2>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-slate-300">
-                  <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/50 px-3 py-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-violet-400 shadow-[0_0_10px_rgba(167,139,250,0.7)]" />
+                <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-200">
+                  <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/80 px-3 py-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-violet-400 shadow-[0_0_10px_rgba(167,139,250,0.8)]" />
                     Car
                   </div>
-                  <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/50 px-3 py-1.5">
-                    <span className="h-2.5 w-4 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.7)]" />
+                  <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/80 px-3 py-1.5">
+                    <span className="h-2.5 w-4 rounded-full bg-orange-500 shadow-[0_0_10px_rgba(249,115,22,0.8)]" />
                     Bus
                   </div>
-                  <div className="flex items-center gap-2 rounded-full border border-white/10 bg-slate-950/50 px-3 py-1.5">
-                    <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(56,189,248,0.7)]" />
+                  <div className="flex items-center gap-2 rounded-full border border-slate-800 bg-slate-950/80 px-3 py-1.5">
+                    <span className="h-2.5 w-2.5 rounded-full bg-cyan-400 shadow-[0_0_10px_rgba(56,189,248,0.8)]" />
                     Motorcycle
                   </div>
                 </div>
               </div>
 
               <div className="p-4 sm:p-6">
-                <div className="relative overflow-hidden rounded-[1.75rem] border border-white/10 bg-[#060b16] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.14),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.10),transparent_26%)]" />
+                <div className="relative overflow-hidden rounded-[1.75rem] border border-slate-800 bg-[#030712] shadow-2xl">
+                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.06),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.04),transparent_26%)]" />
                   <div className="relative flex min-h-[640px] items-center justify-center">
                     {/* HUD Overlays */}
-                    <div className="absolute left-6 top-6 z-10 flex items-center gap-2 rounded-full bg-slate-950/70 border border-white/5 px-3 py-1 text-[9px] font-semibold uppercase tracking-wider text-slate-400 backdrop-blur-md select-none">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.7)]" />
+                    <div className="absolute left-6 top-6 z-10 flex items-center gap-2 rounded-full bg-slate-950 border border-slate-800 px-3 py-1 text-[9px] font-bold uppercase tracking-wider text-slate-200 shadow-md">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
                       Live Topology Feed
                     </div>
-                    <div className="absolute right-6 top-6 z-10 flex items-center gap-1.5 rounded-full bg-slate-950/70 border border-white/5 px-3 py-1 text-[9px] font-mono text-slate-400 backdrop-blur-md select-none">
-                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
+                    <div className="absolute right-6 top-6 z-10 flex items-center gap-1.5 rounded-full bg-slate-950 border border-slate-800 px-3 py-1 text-[9px] font-mono text-slate-200 shadow-md">
+                      <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]" />
                       <span>REC</span>
                     </div>
 
@@ -949,8 +820,8 @@ export default function App() {
                       className="block h-auto w-full max-h-[760px] object-contain cursor-pointer"
                     />
                     {!canvasData && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm">
-                        <div className="flex flex-col items-center rounded-3xl border border-white/10 bg-white/5 px-6 py-5 shadow-2xl">
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+                        <div className="flex flex-col items-center rounded-3xl border border-slate-800 bg-slate-900/90 px-6 py-5 shadow-2xl">
                           <div className="mb-4 h-10 w-10 animate-spin rounded-full border-4 border-cyan-400 border-t-transparent" />
                           <span className="text-sm font-medium tracking-wide text-cyan-200">
                             Connecting to engine...
@@ -965,22 +836,22 @@ export default function App() {
           </main>
 
           <aside className="col-span-12 xl:col-span-4 flex flex-col gap-4">
-            <section className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/5 shadow-[0_30px_80px_rgba(2,6,23,0.45)] backdrop-blur-xl">
-              <div className="border-b border-white/10 px-5 py-3 sm:px-6">
+            <section className="overflow-hidden rounded-[2rem] border border-slate-800 bg-[#0f172a]/60 shadow-2xl">
+              <div className="border-b border-slate-800 px-5 py-3 sm:px-6">
                 <h3 className="flex items-center gap-2 text-base font-semibold text-white">
-                  <Settings2 className="h-5 w-5 text-cyan-300" />
+                  <Settings2 className="h-5 w-5 text-cyan-400" />
                   Control Panel
                 </h3>
               </div>
 
               <div className="space-y-3 p-4 sm:p-5">
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/90 p-3 shadow-md">
                   <div className="flex items-center justify-between">
-                    <label className="block text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
+                    <label className="block text-[10px] font-bold uppercase tracking-[0.22em] text-slate-300">
                       Intersection
                     </label>
-                    <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#0b1220] px-3 py-1.5 text-xs text-slate-100">
-                      <span className="flex h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.6)] animate-pulse" />
+                    <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-[#0b1220] px-3 py-1.5 text-xs text-slate-100">
+                      <span className="flex h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
                       <span className="font-semibold tracking-wide">Node #{selectedIntersection}</span>
                     </div>
                   </div>
@@ -990,8 +861,8 @@ export default function App() {
                     disabled={isSwitching}
                     className={`relative mt-3 inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl px-4 py-2 text-xs font-bold transition-all duration-300 ${
                       isSwitching
-                        ? "cursor-not-allowed border border-white/10 bg-white/5 text-slate-500"
-                        : "bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 text-slate-950 shadow-[0_4px_20px_rgba(6,182,212,0.25)] hover:-translate-y-0.5 hover:shadow-[0_6px_25px_rgba(6,182,212,0.35)] hover:scale-[1.01] active:scale-[0.99]"
+                        ? "cursor-not-allowed border border-slate-800 bg-slate-900/40 text-slate-500"
+                        : "bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 text-slate-950 shadow-[0_4px_20px_rgba(6,182,212,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_25px_rgba(6,182,212,0.45)] hover:scale-[1.01] active:scale-[0.99]"
                     }`}
                   >
                     {isSwitching ? "Switching Phase..." : "Force Phase Switch"}
@@ -999,22 +870,22 @@ export default function App() {
                   </button>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3">
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/90 p-3 shadow-md">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                      <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-300">
                         Queue Length
                       </div>
-                      <div className="mt-1 text-2xl font-black tracking-[-0.05em] text-rose-300">
+                      <div className="mt-1 text-2xl font-black tracking-[-0.05em] text-rose-400">
                         {totalQueue}
                       </div>
                     </div>
-                    <div className="rounded-xl border border-rose-400/15 bg-rose-400/10 p-2 animate-pulse">
-                      <TriangleAlert className="h-4 w-4 text-rose-300" />
+                    <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-2 animate-pulse">
+                      <TriangleAlert className="h-4 w-4 text-rose-400" />
                     </div>
                   </div>
 
-                  <div className="mt-3 grid gap-2 rounded-xl border border-white/5 bg-slate-900/20 p-2">
+                  <div className="mt-3 grid gap-2 rounded-xl border border-slate-800 bg-[#0b1220] p-2 shadow-inner">
                     {selectedMetrics && selectedMetrics.directions ? (
                       Object.entries(selectedMetrics.directions).map(
                         ([incomingId, metrics]) => {
@@ -1026,31 +897,31 @@ export default function App() {
                           return (
                             <div
                               key={incomingId}
-                              className="flex flex-col gap-1.5 rounded-lg border border-white/5 bg-slate-900/40 px-2.5 py-1.5"
+                              className="flex flex-col gap-1.5 rounded-lg border border-slate-800 bg-slate-900/60 px-2.5 py-1.5"
                             >
                               <div className="flex items-center justify-between text-[11px]">
                                 <div>
-                                  <span className="font-semibold text-slate-200">
+                                  <span className="font-bold text-slate-200">
                                     Node #{incomingId}
                                   </span>
-                                  <span className="ml-2 text-[9px] text-slate-500">
+                                  <span className="ml-2 text-[9px] text-slate-400">
                                     {metrics.avg_speed.toFixed(1)} m/s
                                   </span>
                                 </div>
                                 <span
-                                  className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${metrics.queue_length > 5 ? "bg-rose-500/20 text-rose-300" : "bg-slate-800 text-slate-300"}`}
+                                  className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${metrics.queue_length > 5 ? "bg-rose-500/20 text-rose-400 border border-rose-500/30" : "bg-slate-800 text-slate-300"}`}
                                 >
                                   Queue: {metrics.queue_length}
                                 </span>
                               </div>
-                              <div className="h-1 w-full rounded-full bg-slate-950/60 overflow-hidden">
+                              <div className="h-1 w-full rounded-full bg-[#030712] overflow-hidden">
                                 <div
                                   className={`h-full rounded-full transition-all duration-500 ${
                                     metrics.queue_length > 8
-                                      ? "bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_8px_rgba(244,63,94,0.4)]"
+                                      ? "bg-gradient-to-r from-rose-500 to-red-600 shadow-[0_0_8px_rgba(244,63,94,0.6)]"
                                       : metrics.queue_length > 3
-                                        ? "bg-gradient-to-r from-amber-400 to-orange-500"
-                                        : "bg-gradient-to-r from-cyan-400 to-emerald-400"
+                                        ? "bg-gradient-to-r from-amber-400 to-orange-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
+                                        : "bg-gradient-to-r from-cyan-400 to-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]"
                                   }`}
                                   style={{ width: `${percent}%` }}
                                 />
@@ -1067,16 +938,16 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-white/10 bg-slate-950/60 p-3 space-y-3">
-                  <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                    <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-400">
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/90 p-3 space-y-3 shadow-md">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <div className="text-[9px] font-bold uppercase tracking-[0.22em] text-slate-300">
                       RL Diagnostics
                     </div>
                     <span
                       className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${
                         (rewardMetrics?.reward ?? 0) >= 0
-                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                          : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : "bg-rose-500/20 text-rose-400 border border-rose-500/30"
                       }`}
                     >
                       Reward:{" "}
@@ -1090,20 +961,19 @@ export default function App() {
                     {/* Queue Penalty */}
                     <div className="space-y-0.5">
                       <div className="flex justify-between text-[10px]">
-                        <span className="text-slate-400">Queue Penalty</span>
-                        <span className="font-semibold text-rose-300">
+                        <span className="text-slate-300">Queue Penalty</span>
+                        <span className="font-semibold text-rose-300 font-mono">
                           -
-                          {(
-                            ((rewardMetrics?.queue_length ?? 0) * 2.2) /
-                            12.0
-                          ).toFixed(2)}
+                          {rewardMetrics?.queue_penalty !== undefined
+                            ? rewardMetrics.queue_penalty.toFixed(2)
+                            : "0.00"}
                         </span>
                       </div>
-                      <div className="h-1 w-full rounded-full bg-slate-900 overflow-hidden">
+                      <div className="h-1.5 w-full rounded-full bg-[#030712] overflow-hidden">
                         <div
-                          className="h-full bg-rose-500 rounded-full transition-all duration-300"
+                          className="h-full bg-rose-500 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(244,63,94,0.6)]"
                           style={{
-                            width: `${Math.min(((rewardMetrics?.queue_length ?? 0) / 12.0) * 100, 100)}%`,
+                            width: `${rewardMetrics?.queue_pct ?? 0}%`,
                           }}
                         />
                       </div>
@@ -1112,22 +982,21 @@ export default function App() {
                     {/* Imbalance Penalty */}
                     <div className="space-y-0.5">
                       <div className="flex justify-between text-[10px]">
-                        <span className="text-slate-400">
+                        <span className="text-slate-300">
                           Imbalance Penalty
                         </span>
-                        <span className="font-semibold text-amber-300">
+                        <span className="font-semibold text-amber-300 font-mono">
                           -
-                          {(
-                            ((rewardMetrics?.imbalance ?? 0) * 1.2) /
-                            10.0
-                          ).toFixed(2)}
+                          {rewardMetrics?.imbalance_penalty !== undefined
+                            ? rewardMetrics.imbalance_penalty.toFixed(2)
+                            : "0.00"}
                         </span>
                       </div>
-                      <div className="h-1 w-full rounded-full bg-slate-900 overflow-hidden">
+                      <div className="h-1.5 w-full rounded-full bg-[#030712] overflow-hidden">
                         <div
-                          className="h-full bg-amber-500 rounded-full transition-all duration-300"
+                          className="h-full bg-amber-500 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(245,158,11,0.6)]"
                           style={{
-                            width: `${Math.min(((rewardMetrics?.imbalance ?? 0) / 10.0) * 100, 100)}%`,
+                            width: `${rewardMetrics?.imbalance_pct ?? 0}%`,
                           }}
                         />
                       </div>
@@ -1136,22 +1005,21 @@ export default function App() {
                     {/* Red Pressure Penalty */}
                     <div className="space-y-0.5">
                       <div className="flex justify-between text-[10px]">
-                        <span className="text-slate-400">
+                        <span className="text-slate-300">
                           Red Pressure Penalty
                         </span>
-                        <span className="font-semibold text-orange-300">
+                        <span className="font-semibold text-orange-300 font-mono">
                           -
-                          {(
-                            ((rewardMetrics?.red_pressure ?? 0) * 0.6) /
-                            10.0
-                          ).toFixed(2)}
+                          {rewardMetrics?.red_pressure_penalty !== undefined
+                            ? rewardMetrics.red_pressure_penalty.toFixed(2)
+                            : "0.00"}
                         </span>
                       </div>
-                      <div className="h-1 w-full rounded-full bg-slate-900 overflow-hidden">
+                      <div className="h-1.5 w-full rounded-full bg-[#030712] overflow-hidden">
                         <div
-                          className="h-full bg-orange-500 rounded-full transition-all duration-300"
+                          className="h-full bg-orange-500 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(249,115,22,0.6)]"
                           style={{
-                            width: `${Math.min(((rewardMetrics?.red_pressure ?? 0) / 10.0) * 100, 100)}%`,
+                            width: `${rewardMetrics?.red_pressure_pct ?? 0}%`,
                           }}
                         />
                       </div>
@@ -1160,19 +1028,19 @@ export default function App() {
                     {/* Speed Bonus */}
                     <div className="space-y-0.5">
                       <div className="flex justify-between text-[10px]">
-                        <span className="text-slate-400">Avg Speed Bonus</span>
-                        <span className="font-semibold text-emerald-400">
+                        <span className="text-slate-300">Avg Speed Bonus</span>
+                        <span className="font-semibold text-emerald-400 font-mono">
                           +
                           {rewardMetrics?.speed_bonus !== undefined
                             ? rewardMetrics.speed_bonus.toFixed(2)
                             : "0.00"}
                         </span>
                       </div>
-                      <div className="h-1 w-full rounded-full bg-slate-900 overflow-hidden">
+                      <div className="h-1.5 w-full rounded-full bg-[#030712] overflow-hidden">
                         <div
-                          className="h-full bg-emerald-400 rounded-full transition-all duration-300"
+                          className="h-full bg-emerald-400 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(52,211,153,0.6)]"
                           style={{
-                            width: `${Math.min(((rewardMetrics?.speed_avg ?? 0) / 18.0) * 100, 100)}%`,
+                            width: `${rewardMetrics?.speed_pct ?? 0}%`,
                           }}
                         />
                       </div>
@@ -1187,3 +1055,4 @@ export default function App() {
     </div>
   );
 }
+

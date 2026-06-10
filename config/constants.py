@@ -143,27 +143,27 @@ class SimulationConfig:
 # (Tất cả tham số dưới đây được đồng bộ tự động sang lớp RewardWeights của Agent)
 
 # Offset cơ sở để giữ Reward ở mức dương khi giao thông thông thoáng (tránh điểm âm hoàn toàn)
-REWARD_OFFSET = 5
+REWARD_OFFSET = 10
 
 # Trọng số phạt tổng số xe đang xếp hàng chờ (queue) ở tất cả các làn vào.
 # - ẢNH HƯỞNG: Giá trị càng cao, Agent càng ưu tiên giải tỏa nhanh mọi hàng chờ.
-WEIGHT_QUEUE = 3.5
+WEIGHT_QUEUE = 7.0
 
 # Trọng số phạt sự mất cân bằng hàng chờ giữa các hướng (ví dụ: hướng Bắc chờ 20 xe, hướng Tây chờ 0 xe).
 # - ẢNH HƯỞNG: Giá trị cao thúc đẩy Agent phân bổ thời gian đèn đều cho các hướng, tránh việc một hướng bị tắc cứng.
-WEIGHT_IMBALANCE = 4.5
+WEIGHT_IMBALANCE = 8.0
 
 # Trọng số phạt xe phải chờ ở làn đang đèn Đỏ (Red Pressure).
 # - ẢNH HƯỞNG: Giá trị cao giúp chống hiện tượng "bỏ đói" (starvation) các làn ít xe. Đèn đỏ có xe chờ quá lâu sẽ buộc phải chuyển xanh.
-WEIGHT_RED_PRESSURE = 3.0
+WEIGHT_RED_PRESSURE = 6.0
 
 # Hình phạt cố định mỗi khi nút giao đổi pha đèn (từ Xanh -> Đỏ).
 # - ẢNH HƯỞNG: Ngăn chặn tình trạng nhảy đèn liên tục (flapping). Giá trị cao giữ pha ổn định lâu hơn.
-WEIGHT_SWITCH_PENALTY = 3.0
+WEIGHT_SWITCH_PENALTY = 5.5
 
 # Điểm thưởng dựa trên vận tốc trung bình của các xe trong khu vực nút giao.
 # - ẢNH HƯỞNG: Khuyến khích tối ưu luồng xe chạy mượt mà, không bị dừng đỗ hẳn.
-WEIGHT_SPEED_BONUS = 0.08
+WEIGHT_SPEED_BONUS = 0.1
 
 
 # ─── Hệ số chuẩn hóa (Scale Factors) ──────────────────────────────────────────
@@ -171,16 +171,16 @@ WEIGHT_SPEED_BONUS = 0.08
 # Giúp tránh lỗi bão hòa Reward (Reward Saturation) khi lượng xe trong simulation quá lớn (~1760 xe).
 
 # Hệ số chia chuẩn hóa cho tổng hàng chờ. (Công thức: queue_total / SCALE_QUEUE)
-SCALE_QUEUE = 100.0
+SCALE_QUEUE = 80.0
 
 # Hệ số chia chuẩn hóa cho độ lệch hàng chờ giữa các hướng.
 SCALE_IMBALANCE = 50.0
 
 # Hệ số chia chuẩn hóa cho hàng chờ ở làn đèn đỏ.
-SCALE_RED_PRESSURE = 100.0
+SCALE_RED_PRESSURE = 80.0
 
 # Hệ số chia chuẩn hóa cho tốc độ trung bình (thường chia cho tốc độ tối đa của xe).
 SCALE_SPEED = 29.0
 
 # Giới hạn giá trị Reward trong khoảng [-REWARD_CLIP, +REWARD_CLIP] để ổn định gradient khi train.
-REWARD_CLIP = 5.0
+REWARD_CLIP = 10.0
