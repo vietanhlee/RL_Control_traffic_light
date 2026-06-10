@@ -84,7 +84,7 @@ sleep 120
 
 echo "=== 7. Starting RL Training ==="
 # Chạy script train ở màn hình chính (foreground) để xem output
-python -u "RL model/train.py" --steps 36000
+python -u "RL model/train.py" --steps 7200
 
 echo "=== Training Finished ==="
 # Dọn dẹp process backend sau khi train xong
