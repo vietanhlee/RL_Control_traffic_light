@@ -3,25 +3,6 @@
 # Dừng script nếu có lỗi xảy ra
 set -e
 
-echo "=== 1. Cloning repository ==="
-if [ ! -d "RL_Control_traffic_light" ]; then
-    git clone https://github.com/vietanhlee/RL_Control_traffic_light
-else
-    echo "Directory RL_Control_traffic_light already exists, skipping clone."
-fi
-
-# Chuyển vào thư mục dự án
-cd RL_Control_traffic_light || exit
-
-echo "=== 2. Activating virtual environment if available ==="
-if [ -f ".venv/bin/activate" ]; then
-    source .venv/bin/activate
-elif [ -f ".venv/Scripts/activate" ]; then
-    source .venv/Scripts/activate
-else
-    echo "No virtual environment found, continuing with system Python."
-fi
-
 echo "=== 3. Installing dependencies ==="
 pip install -r requirements.txt
 
