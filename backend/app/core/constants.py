@@ -89,4 +89,4 @@ SCALE_SPEED = 29.0
 REWARD_CLIP = 20.0
 
 # ─── Hệ số phạt Imbalance Reward toàn mạng ──────────────────────────────────────
-GLOBAL_IMBALANCE_WEIGHT = 0.65
+GLOBAL_IMBALANCE_WEIGHT = 0.55

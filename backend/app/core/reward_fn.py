@@ -89,7 +89,7 @@ def compute_intersection_reward(
 
     # Phạt phi tuyến tính: tắc nghẽn nặng (reward âm) bị nhân đôi mức phạt
     if reward_raw < 0.0:
-        reward_raw = -(abs(reward_raw) ** 2.0)
+        reward_raw = -(abs(reward_raw) ** 1.5)
 
     reward = max(-reward_clip, min(reward_clip, reward_raw))
 
