@@ -42,6 +42,33 @@ class TrafficLightController:
         shift_amount = sample_timing.cycle_time / max(num_phases, 1)
         self.manual_offset += shift_amount
 
+    def get_current_phase(self, now: float) -> int:
+        if not self.approach_timings:
+            return 0
+        sorted_approaches = sorted(self.approach_timings.keys())
+        for idx, approach in enumerate(sorted_approaches):
+            state = self.get_state(now, approach)
+            if state in (LightColor.GREEN, LightColor.YELLOW):
+                return idx
+        return 0
+
+    def set_active_phase(self, now: float, phase_index: int) -> bool:
+        if not self.approach_timings:
+            return False
+        sorted_approaches = sorted(self.approach_timings.keys())
+        if phase_index < 0 or phase_index >= len(sorted_approaches):
+            return False
+        
+        current_phase = self.get_current_phase(now)
+        if current_phase == phase_index:
+            return False
+            
+        target_approach = sorted_approaches[phase_index]
+        timing = self.approach_timings[target_approach]
+        cycle = max(timing.cycle_time, 1e-6)
+        self.manual_offset = (-now - timing.offset) % cycle
+        return True
+
     def get_state(self, now: float, approach_from: int) -> LightColor:
         timing = self.approach_timings[approach_from]
         cycle = max(timing.cycle_time, 1e-6)

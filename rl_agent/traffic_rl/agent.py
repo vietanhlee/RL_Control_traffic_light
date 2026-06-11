@@ -84,8 +84,8 @@ class IndividualQNet(nn.Module):
     def __init__(
         self,
         input_dim: int,
-        hidden_dim: int = 128,
-        n_actions: int = 2,
+        hidden_dim: int = 256,
+        n_actions: int = 4,
     ) -> None:
         super().__init__()
 
@@ -163,12 +163,13 @@ class QMIXAgent:
         obs_dim: int,
         layout: dict[int, tuple[float, float]] | None = None,
         connections: list[tuple[int, int, int]] | None = None,
+        n_actions: int = 4,
         learning_rate: float = 0.0005,
         gamma: float = 0.96,
         epsilon: float = 1.0,
         min_epsilon: float = 0.05,
         epsilon_decay: float = 0.9995,
-        hidden_dim: int = 128,
+        hidden_dim: int = 256,
         mixing_hidden_dim: int = 32,
         batch_size: int = 32,
         buffer_capacity: int = 5000,
@@ -177,6 +178,7 @@ class QMIXAgent:
     ) -> None:
         self.n_agents = n_agents
         self.obs_dim = obs_dim
+        self.n_actions = n_actions
         self.learning_rate = learning_rate
         self.gamma = gamma
         self.epsilon = epsilon
@@ -205,8 +207,8 @@ class QMIXAgent:
         print(f"[DEVICE] Using: {self.device}{gpu_name}")
 
         # ── Q-networks (shared weights cho tat ca agents) ──────────────────
-        self.q_net = IndividualQNet(self.input_dim, hidden_dim).to(self.device)
-        self.target_q_net = IndividualQNet(self.input_dim, hidden_dim).to(self.device)
+        self.q_net = IndividualQNet(self.input_dim, hidden_dim, n_actions=self.n_actions).to(self.device)
+        self.target_q_net = IndividualQNet(self.input_dim, hidden_dim, n_actions=self.n_actions).to(self.device)
         self.target_q_net.load_state_dict(self.q_net.state_dict())
         self.target_q_net.eval()
 
@@ -335,12 +337,12 @@ class QMIXAgent:
 
         self.q_net.eval()
         with torch.no_grad():
-            q_values = self.q_net(augmented)  # (N, 2) tren device
+            q_values = self.q_net(augmented)  # (N, n_actions) tren device
         self.q_net.train()
 
         for i, agent_id in enumerate(agent_ids):
             if explore and self.rng.random() < self.epsilon:
-                actions[agent_id] = self.rng.randint(0, 1)
+                actions[agent_id] = self.rng.randint(0, self.n_actions - 1)
             else:
                 actions[agent_id] = int(q_values[i].argmax().item())
 
@@ -406,7 +408,7 @@ class QMIXAgent:
         agent_ids_flat  = agent_ids_tiled.reshape(B * N, N)
 
         obs_aug = torch.cat([obs_flat, agent_ids_flat], dim=-1)    # (B*N, input_dim)
-        q_all   = self.q_net(obs_aug).view(B, N, 2)                # (B, N, 2)
+        q_all   = self.q_net(obs_aug).view(B, N, self.n_actions)   # (B, N, n_actions)
 
         actions_exp = actions_all.unsqueeze(-1)                    # (B, N, 1)
         q_taken     = q_all.gather(2, actions_exp).squeeze(-1)     # (B, N)
@@ -419,10 +421,10 @@ class QMIXAgent:
 
         with torch.no_grad():
             # Online net chon action, target net danh gia gia tri
-            next_q_online  = self.q_net(next_obs_aug).view(B, N, 2)
+            next_q_online  = self.q_net(next_obs_aug).view(B, N, self.n_actions)
             best_actions   = next_q_online.argmax(dim=-1, keepdim=True)   # (B, N, 1)
 
-            next_q_target  = self.target_q_net(next_obs_aug).view(B, N, 2)
+            next_q_target  = self.target_q_net(next_obs_aug).view(B, N, self.n_actions)
             next_q_taken   = next_q_target.gather(2, best_actions).squeeze(-1)  # (B, N)
 
             q_joint_target = self.target_mixing_net(next_q_taken, next_global_st)  # (B,)
@@ -472,6 +474,7 @@ class QMIXAgent:
             "algorithm": "QMIX",
             "n_agents": self.n_agents,
             "obs_dim": self.obs_dim,
+            "n_actions": self.n_actions,
             "input_dim": self.input_dim,
             "global_state_dim": self.global_state_dim,
             # Hyperparameters
@@ -531,6 +534,7 @@ class QMIXAgent:
                 obs_dim=int(payload["obs_dim"]),
                 layout=kwargs.get("layout"),
                 connections=kwargs.get("connections"),
+                n_actions=int(payload.get("n_actions", 4)),
                 learning_rate=kwargs.get("learning_rate", float(payload.get("learning_rate", 0.0005))),
                 gamma=kwargs.get("gamma", float(payload.get("gamma", 0.96))),
                 epsilon=kwargs.get("epsilon", float(payload.get("epsilon", 1.0))),

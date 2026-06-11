@@ -26,7 +26,8 @@ from pathlib import Path
 from typing import Any
 
 from .client import TrafficApiClient
-from .config import RewardWeights
+
+
 
 
 
@@ -59,7 +60,6 @@ class TrafficEnvironment:
         client                    : Client HTTP để gọi backend API.
         decision_interval_seconds : Thời gian chờ giữa hai step (giây).
                                     Phải khớp với chu kỳ simulation.
-        reward_weights            : Các trọng số và hệ số trong reward function.
         min_phase_hold_steps      : Số step tối thiểu giữ nguyên pha sau khi CHANGE.
         intersection_ids          : Danh sách ID các nút giao trong mạng.
         records                   : Dict lưu IntersectionRecord cho từng nút giao.
@@ -67,12 +67,12 @@ class TrafficEnvironment:
 
     client: TrafficApiClient
     decision_interval_seconds: float = 1.0
-    reward_weights: RewardWeights = field(default_factory=RewardWeights)
     min_phase_hold_steps: int = 2
     intersection_ids: list[int] = field(default_factory=list)
     records: dict[int, IntersectionRecord] = field(default_factory=dict)
     intersection_layout: dict[int, tuple[float, float]] = field(default_factory=dict)
     intersection_connections: list[tuple[int, int, int]] = field(default_factory=list)
+    last_obs: dict[int, dict[str, Any]] = field(default_factory=dict)
 
     def bootstrap(self) -> list[int]:
         """Lấy danh sách nút giao từ backend và khởi tạo records.
@@ -108,6 +108,7 @@ class TrafficEnvironment:
         """
         self.client.reset()
         self.bootstrap()
+        self.last_obs = self.observe_all()
 
     def observe(self, intersection_id: int) -> dict[str, Any]:
         """Lấy observation chi tiết cho một nút giao cụ thể.
@@ -195,19 +196,19 @@ class TrafficEnvironment:
     def apply_actions(self, actions: dict[int, int]) -> None:
         """Gửi hành động lên backend và cập nhật IntersectionRecord.
 
-        Với hành động CHANGE (1): đặt lại bộ đếm steps_since_switch về 0.
-        Với hành động KEEP  (0): tăng steps_since_switch thêm 1.
-
         Args:
-            actions: Dict mapping intersection_id → action (0 hoặc 1).
+            actions: Dict mapping intersection_id → action (pha mong muốn: 0, 1, 2 hoặc 3).
         """
-        filtered_actions = {intersection_id: action for intersection_id, action in actions.items() if action in (0, 1)}
+        filtered_actions = {intersection_id: action for intersection_id, action in actions.items() if action in (0, 1, 2, 3)}
         if filtered_actions:
             self.client.post_actions(filtered_actions)
 
         for intersection_id, action in filtered_actions.items():
             record = self.records.setdefault(intersection_id, IntersectionRecord())
-            if action == 1:
+            obs = self.last_obs.get(intersection_id, {})
+            current_phase = obs.get("current_phase", 0)
+            
+            if action != current_phase:
                 record.last_switch_step = record.steps_since_switch
                 record.steps_since_switch = 0
             else:
@@ -242,4 +243,5 @@ class TrafficEnvironment:
         # Tăng counter cho tất cả nút giao (thời gian trôi qua)
         for record in self.records.values():
             record.steps_since_switch += 1
-        return self.observe_all()
+        self.last_obs = self.observe_all()
+        return self.last_obs

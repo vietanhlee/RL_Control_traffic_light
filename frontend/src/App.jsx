@@ -79,13 +79,13 @@ export default function App() {
   }, [networkData]);
 
   // 4. Force Phase Switch Action
-  const handleForceSwitch = async () => {
+  const handleForceSwitch = async (phaseIndex) => {
     setIsSwitching(true);
     try {
       await fetch(`${apiBase}/api/v1/action/${selectedIntersection}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: 1 }),
+        body: JSON.stringify({ action: phaseIndex }),
       });
     } catch (err) {
       console.error("Action failed", err);
@@ -854,18 +854,43 @@ export default function App() {
                     </div>
                   </div>
 
-                  <button
-                    onClick={handleForceSwitch}
-                    disabled={isSwitching}
-                    className={`relative mt-3 inline-flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl px-4 py-2 text-xs font-bold transition-all duration-300 ${
-                      isSwitching
-                        ? "cursor-not-allowed border border-slate-800 bg-slate-900/40 text-slate-500"
-                        : "bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-500 text-slate-950 shadow-[0_4px_20px_rgba(6,182,212,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_25px_rgba(6,182,212,0.45)] hover:scale-[1.01] active:scale-[0.99]"
-                    }`}
-                  >
-                    {isSwitching ? "Switching Phase..." : "Force Phase Switch"}
-                    <ArrowUpRight className="h-3.5 w-3.5" />
-                  </button>
+                  <div className="mt-3">
+                    <label className="block text-[8px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">
+                      Manual Phase Selection
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedMetrics?.directions ? (
+                        Object.keys(selectedMetrics.directions)
+                          .sort((a, b) => Number(a) - Number(b))
+                          .map((nodeId, idx) => {
+                            const currentPhaseSource = selectedMetrics?.current_phase_source;
+                            const isActive = Number(nodeId) === Number(currentPhaseSource);
+                            
+                            return (
+                              <button
+                                key={nodeId}
+                                onClick={() => handleForceSwitch(idx)}
+                                disabled={isSwitching}
+                                className={`flex-1 min-w-[70px] relative inline-flex items-center justify-center gap-1.5 overflow-hidden rounded-xl px-3 py-2 text-xs font-bold transition-all duration-300 ${
+                                  isSwitching
+                                    ? "cursor-not-allowed border border-slate-800 bg-slate-900/40 text-slate-500"
+                                    : isActive
+                                      ? "bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 shadow-[0_4px_15px_rgba(16,185,129,0.3)] border border-emerald-400 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98]"
+                                      : "border border-slate-800 bg-[#0b1220] hover:border-cyan-500/40 text-slate-300 hover:text-slate-100 hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98]"
+                                }`}
+                              >
+                                <span>P{idx}</span>
+                                <span className="text-[9px] opacity-75">(#{nodeId})</span>
+                              </button>
+                            );
+                          })
+                      ) : (
+                        <div className="text-xs text-slate-500 text-center py-2 w-full">
+                          No phases available
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div className="rounded-2xl border border-slate-800 bg-slate-950/90 p-3 shadow-md">

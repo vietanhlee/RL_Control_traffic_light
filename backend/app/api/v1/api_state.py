@@ -47,6 +47,12 @@ async def get_states():
                 if color.upper() == "RED":
                      red_pressure += state_data[incoming]["queue_length"]
 
+            current_phase = 0
+            for idx, incoming in enumerate(intersection.incoming_nodes):
+                if light_states[incoming] in ("GREEN", "YELLOW"):
+                    current_phase = idx
+                    break
+
             reward_res = calculate_intersection_reward(current_engine, intersection_id, current_engine.time_s)
 
             result[intersection_id] = {
@@ -63,6 +69,7 @@ async def get_states():
                 "speed_avg": speed_avg,
                 "red_pressure": red_pressure,
                 "imbalance": local_imbalance,
+                "current_phase": current_phase,
                 "reward": reward_res["reward"],
                 "reward_metrics": reward_res,
             }
@@ -109,6 +116,12 @@ async def get_state(intersection_id: int):
             if color.upper() == "RED":
                 red_pressure += state_data[incoming]["queue_length"]
 
+        current_phase = 0
+        for idx, incoming in enumerate(intersection.incoming_nodes):
+            if light_states[incoming] in ("GREEN", "YELLOW"):
+                current_phase = idx
+                break
+
         reward_res = calculate_intersection_reward(current_engine, intersection_id, current_engine.time_s)
 
         return {
@@ -125,6 +138,7 @@ async def get_state(intersection_id: int):
             "speed_avg": speed_avg,
             "red_pressure": red_pressure,
             "imbalance": local_imbalance,
+            "current_phase": current_phase,
             "reward": reward_res["reward"],
             "reward_metrics": reward_res,
         }

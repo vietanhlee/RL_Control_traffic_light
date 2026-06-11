@@ -12,10 +12,10 @@ async def post_action(intersection_id: int, request: ActionRequest):
         if intersection_id not in current_engine.intersections:
             raise HTTPException(status_code=404, detail="Intersection not found")
 
-        # 0 = keep, 1 = change
-        if request.action == 1:
-            current_engine.force_switch_phase(intersection_id)
+        # action sẽ là index của pha (0, 1, 2, 3)
+        current_engine.set_active_phase(intersection_id, request.action)
         return {"status": "ok", "action_taken": request.action}
+
 
 @router.post("/actions")
 async def post_actions(request: ActionsRequest):
@@ -25,7 +25,6 @@ async def post_actions(request: ActionsRequest):
         for intersection_id, action in request.actions.items():
             if intersection_id not in current_engine.intersections:
                 continue
-            if action == 1:
-                current_engine.force_switch_phase(intersection_id)
+            current_engine.set_active_phase(intersection_id, action)
             applied += 1
         return {"status": "ok", "applied": applied}

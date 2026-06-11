@@ -123,6 +123,12 @@ class SimulationEngine:
             self.intersections[intersection_id].force_switch_phase()
             self.last_switch_time[intersection_id] = self.time_s
 
+    def set_active_phase(self, intersection_id: int, phase_index: int) -> None:
+        if intersection_id in self.intersections:
+            changed = self.intersections[intersection_id].set_active_phase(self.time_s, phase_index)
+            if changed:
+                self.last_switch_time[intersection_id] = self.time_s
+
     def set_vehicle_target(self, target: int) -> None:
         self._replace_config(target_vehicle_count=max(1, target))
 

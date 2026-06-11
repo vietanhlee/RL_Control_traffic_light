@@ -49,6 +49,7 @@ def main() -> int:
     try:
         env.bootstrap()
         initial_obs = env.observe_all()
+        env.last_obs = initial_obs
     except ApiError as exc:
         print(f"[ERROR] {exc}")
         return 1
@@ -89,7 +90,7 @@ def main() -> int:
             explore=False,
         )
         actions = {
-            aid: (0 if env.hold_required(aid) else raw_actions[aid])
+            aid: (env.last_obs.get(aid, {}).get("current_phase", 0) if env.hold_required(aid) else raw_actions[aid])
             for aid in agent_ids
         }
 

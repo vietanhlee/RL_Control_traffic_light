@@ -7,28 +7,14 @@ argparse của train.py và evaluate.py. Có thể override qua CLI args.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-# Trọng số và tỉ lệ reward mặc định (gán cứng nội bộ cho Agent)
-REWARD_OFFSET = 10
-WEIGHT_QUEUE = 7.0
-WEIGHT_IMBALANCE = 8.0
-WEIGHT_RED_PRESSURE = 6.5
-WEIGHT_SWITCH_PENALTY = 6
-WEIGHT_SPEED_BONUS = 0.1
-SCALE_QUEUE = 80.0
-SCALE_IMBALANCE = 50.0
-SCALE_RED_PRESSURE = 80.0
-SCALE_SPEED = 29.0
-REWARD_CLIP = 10.0
-GLOBAL_IMBALANCE_WEIGHT = 0.45
-
 
 # ─── API & Training Loop ───────────────────────────────────────────────────────
 DEFAULT_BASE_URL = "http://127.0.0.1:8011"
 DEFAULT_DECISION_INTERVAL_SECONDS = 1.5 # Giây chờ giữa các quyết định
 DEFAULT_SAVE_EVERY = 250                   # Lưu model mỗi N step
-DEFAULT_MODEL_PATH = "rl_agent/artifacts/qmix_agent.pth"
+DEFAULT_MODEL_PATH = "artifacts/qmix_agent.pth"
 DEFAULT_HISTORY_WINDOW = 32               # Cửa sổ tính moving average
+GLOBAL_IMBALANCE_WEIGHT = 0.55            # Hệ số phạt imbalance toàn mạng khi gom joint reward
 
 # ─── QMIX Hyperparameters ─────────────────────────────────────────────────────
 DEFAULT_N_AGENTS = 16                     # Số agents = số nút giao thông
@@ -38,35 +24,11 @@ DEFAULT_EPSILON = 1.0                     # Epsilon exploration ban đầu
 DEFAULT_MIN_EPSILON = 0.05                # Epsilon tối thiểu
 DEFAULT_EPSILON_DECAY = 0.9995            # Hệ số suy giảm epsilon/step
 DEFAULT_MIN_PHASE_HOLD_STEPS = 4          # Bước tối thiểu giữ pha đèn
-DEFAULT_BATCH_SIZE = 32                   # Kích thước mini-batch từ joint buffer
+DEFAULT_BATCH_SIZE = 64                   # Kích thước mini-batch từ joint buffer
 DEFAULT_BUFFER_CAPACITY = 5000            # Capacity của JointReplayBuffer
 DEFAULT_TARGET_UPDATE_FREQ = 50          # Hard-update target nets mỗi N updates
-DEFAULT_HIDDEN_DIM = 128                  # Hidden dim của Q-network
-DEFAULT_MIXING_HIDDEN_DIM = 32            # Hidden dim của Mixing network
+DEFAULT_HIDDEN_DIM = 256                  # Hidden dim của Q-network
+DEFAULT_MIXING_HIDDEN_DIM = 128            # Hidden dim của Mixing network
 
 
-@dataclass(frozen=True)
-class RewardWeights:
-    """Trọng số và hệ số scale cho hàm reward của từng nút giao.
 
-    Giá trị của các hằng số được lấy trực tiếp từ config/constants.py
-    để đảm bảo tính đồng bộ giữa Backend và RL Agent.
-    """
-
-    queue: float = WEIGHT_QUEUE
-    density: float = 0.7         # Trọng số phạt mật độ xe (reserved)
-    imbalance: float = WEIGHT_IMBALANCE
-    red_pressure: float = WEIGHT_RED_PRESSURE
-    switch_penalty: float = WEIGHT_SWITCH_PENALTY
-    speed_bonus: float = WEIGHT_SPEED_BONUS
-
-    # Scale factors (chuẩn hóa các giá trị về khoảng [0, 1])
-    queue_scale: float = SCALE_QUEUE
-    density_scale: float = 8.0
-    imbalance_scale: float = SCALE_IMBALANCE
-    red_pressure_scale: float = SCALE_RED_PRESSURE
-    speed_scale: float = SCALE_SPEED
-
-    # Reward clip và offset
-    reward_clip: float = REWARD_CLIP
-    reward_offset: float = float(REWARD_OFFSET)

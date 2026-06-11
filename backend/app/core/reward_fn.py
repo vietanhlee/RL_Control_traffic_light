@@ -87,9 +87,9 @@ def compute_intersection_reward(
 
     reward_raw = reward_offset - cost
 
-    # Phạt phi tuyến tính: tắc nghẽn nặng (reward âm) bị nhân đôi mức phạt
-    if reward_raw < 0.0:
-        reward_raw = -(abs(reward_raw) ** 1.5)
+    # Phạt phi tuyến tính: Đã được gỡ bỏ để tránh làm gián đoạn gradient và gây ra cliff effect
+    # if reward_raw < 0.0:
+    #     reward_raw = -(abs(reward_raw) ** 1.5)
 
     reward = max(-reward_clip, min(reward_clip, reward_raw))
 

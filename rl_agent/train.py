@@ -144,6 +144,7 @@ def main() -> int:
 
     # ── Xác định kích thước features và agent IDs ─────────────────────────
     initial_obs = env.observe_all()
+    env.last_obs = initial_obs
     agent_ids: list[int] = env.intersection_ids  # thứ tự cố định
     n_agents = len(agent_ids)
     obs_dim = len(build_features(next(iter(initial_obs.values()))))
@@ -207,7 +208,7 @@ def main() -> int:
         actions: dict[int, int] = {}
         for aid in agent_ids:
             if env.hold_required(aid):
-                actions[aid] = 0
+                actions[aid] = env.last_obs.get(aid, {}).get("current_phase", 0)
             else:
                 actions[aid] = raw_actions[aid]
 

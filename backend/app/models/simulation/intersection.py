@@ -20,14 +20,22 @@ class Intersection:
     @classmethod
     def with_defaults(cls, node_id: int, incoming_nodes: Iterable[int]) -> "Intersection":
         incoming = sorted(incoming_nodes)
-        cycle = DEFAULT_LIGHT_GREEN_SECONDS + DEFAULT_LIGHT_YELLOW_SECONDS + DEFAULT_LIGHT_RED_SECONDS
+        num_phases = max(len(incoming), 1)
+        
+        green = DEFAULT_LIGHT_GREEN_SECONDS
+        yellow = DEFAULT_LIGHT_YELLOW_SECONDS
+        
+        # Red time phải phụ thuộc vào số pha để tránh trùng đèn Xanh và đồng bộ offset
+        red = (num_phases - 1) * (green + yellow)
+        cycle = green + yellow + red
+        
         timings: Dict[int, SignalTiming] = {}
         for idx, source in enumerate(incoming):
-            offsets = (idx * cycle) / max(len(incoming), 1)
+            offsets = (idx * cycle) / num_phases
             timings[source] = SignalTiming(
-                green=DEFAULT_LIGHT_GREEN_SECONDS,
-                yellow=DEFAULT_LIGHT_YELLOW_SECONDS,
-                red=DEFAULT_LIGHT_RED_SECONDS,
+                green=green,
+                yellow=yellow,
+                red=red,
                 offset=offsets,
             )
         return cls(node_id=node_id, incoming_nodes=incoming, controller=TrafficLightController(timings))
@@ -44,6 +52,9 @@ class Intersection:
 
     def force_switch_phase(self) -> None:
         self.controller.force_phase_switch()
+
+    def set_active_phase(self, now: float, phase_index: int) -> bool:
+        return self.controller.set_active_phase(now, phase_index)
 
     def timing_snapshot(self) -> Dict[int, SignalTiming]:
         return dict(self.controller.approach_timings)
