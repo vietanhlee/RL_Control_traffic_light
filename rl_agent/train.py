@@ -53,6 +53,7 @@ from traffic_rl.config import (
     DEFAULT_N_AGENTS,
     DEFAULT_SAVE_EVERY,
     DEFAULT_TARGET_UPDATE_FREQ,
+    DEFAULT_GAT_HEADS,
     GLOBAL_IMBALANCE_WEIGHT,
 )
 from traffic_rl.environment import TrafficEnvironment
@@ -82,17 +83,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--model-path", default=DEFAULT_MODEL_PATH, help="Đường dẫn lưu/tải model (.pth)")
     parser.add_argument("--save-every", type=int, default=DEFAULT_SAVE_EVERY, help="Lưu model mỗi N step")
     # QMIX hyperparams
-    parser.add_argument("--lr", type=float, default=DEFAULT_LR, help="Learning rate (Adam)")
-    parser.add_argument("--gamma", type=float, default=DEFAULT_GAMMA, help="Discount factor γ")
-    parser.add_argument("--epsilon", type=float, default=DEFAULT_EPSILON, help="Epsilon exploration ban đầu")
-    parser.add_argument("--min-epsilon", type=float, default=DEFAULT_MIN_EPSILON, help="Epsilon tối thiểu")
-    parser.add_argument("--epsilon-decay", type=float, default=DEFAULT_EPSILON_DECAY, help="Hệ số suy giảm epsilon")
+    parser.add_argument("--lr", type=float, default=None, help="Learning rate (Adam)")
+    parser.add_argument("--gamma", type=float, default=None, help="Discount factor γ")
+    parser.add_argument("--epsilon", type=float, default=None, help="Epsilon exploration ban đầu")
+    parser.add_argument("--min-epsilon", type=float, default=None, help="Epsilon tối thiểu")
+    parser.add_argument("--epsilon-decay", type=float, default=None, help="Hệ số suy giảm epsilon")
     parser.add_argument("--min-phase-hold", type=int, default=DEFAULT_MIN_PHASE_HOLD_STEPS, help="Số step giữ pha tối thiểu")
-    parser.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Kích thước mini-batch")
+    parser.add_argument("--batch-size", type=int, default=None, help="Kích thước mini-batch")
     parser.add_argument("--buffer-capacity", type=int, default=DEFAULT_BUFFER_CAPACITY, help="Capacity của joint replay buffer")
-    parser.add_argument("--target-update-freq", type=int, default=DEFAULT_TARGET_UPDATE_FREQ, help="Hard-update target nets mỗi N updates")
-    parser.add_argument("--hidden-dim", type=int, default=DEFAULT_HIDDEN_DIM, help="Hidden dim của Q-network")
-    parser.add_argument("--mixing-hidden-dim", type=int, default=DEFAULT_MIXING_HIDDEN_DIM, help="Hidden dim của Mixing network")
+    parser.add_argument("--target-update-freq", type=int, default=None, help="Hard-update target nets mỗi N updates")
+    parser.add_argument("--hidden-dim", type=int, default=None, help="Hidden dim của Q-network")
+    parser.add_argument("--mixing-hidden-dim", type=int, default=None, help="Hidden dim của Mixing network")
+    parser.add_argument("--gat-heads", type=int, default=None, help="Số đầu chú ý Multi-Head Attention trong GAT")
     # Misc
     parser.add_argument("--reset-first", action="store_true", help="Reset backend trước khi training")
     parser.add_argument("--no-explore", action="store_true", help="Tắt ε-greedy (pure greedy)")
@@ -173,6 +175,7 @@ def main() -> int:
         target_update_freq=args.target_update_freq,
         hidden_dim=args.hidden_dim,
         mixing_hidden_dim=args.mixing_hidden_dim,
+        gat_heads=args.gat_heads,
     )
 
     # ── Vòng lặp training ─────────────────────────────────────────────────
@@ -251,8 +254,12 @@ def main() -> int:
         # ── Bước 6: Update QMIX (1 lần/step, joint loss) ─────────────────
         loss = agent.update()
 
-        # Đếm số action CHANGE trong step này
-        change_count += sum(1 for a in actions_array if a == 1)
+        # Đếm số lần đổi pha thực tế so với current_phase của bước trước
+        actual_changes = 0
+        for aid in agent_ids:
+            if actions.get(aid, 0) != observation[aid].get("current_phase", 0):
+                actual_changes += 1
+        change_count += actual_changes
 
         reward_history.append(joint_reward)
         queue_history.append(avg_queue)

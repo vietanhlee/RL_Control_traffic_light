@@ -19,16 +19,17 @@ GLOBAL_IMBALANCE_WEIGHT = 0.55            # Hệ số phạt imbalance toàn m�
 # ─── QMIX Hyperparameters ─────────────────────────────────────────────────────
 DEFAULT_N_AGENTS = 16                     # Số agents = số nút giao thông
 DEFAULT_LR = 0.0005                       # Learning rate (Adam)
-DEFAULT_GAMMA = 0.98                      # Discount factor γ (Tăng từ 0.96 -> 0.98 để Agent nhìn xa trông rộng hơn)
+DEFAULT_GAMMA = 0.95                      # Discount factor γ (Tăng từ 0.96 -> 0.98 để Agent nhìn xa trông rộng hơn)
 DEFAULT_EPSILON = 1.0                     # Epsilon exploration ban đầu
 DEFAULT_MIN_EPSILON = 0.05                # Epsilon tối thiểu
 DEFAULT_EPSILON_DECAY = 0.9995            # Hệ số suy giảm epsilon/step
-DEFAULT_MIN_PHASE_HOLD_STEPS = 4          # Bước tối thiểu giữ pha đèn
+DEFAULT_MIN_PHASE_HOLD_STEPS = 5         # Bước tối thiểu giữ pha đèn
 DEFAULT_BATCH_SIZE = 64                   # Kích thước mini-batch từ joint buffer
 DEFAULT_BUFFER_CAPACITY = 5000            # Capacity của JointReplayBuffer
 DEFAULT_TARGET_UPDATE_FREQ = 50          # Hard-update target nets mỗi N updates
-DEFAULT_HIDDEN_DIM = 256                  # Hidden dim của Q-network
-DEFAULT_MIXING_HIDDEN_DIM = 128            # Hidden dim của Mixing network
+DEFAULT_HIDDEN_DIM = 1024                  # Hidden dim của Q-network (Nâng lên 512 + 2x Residual)
+DEFAULT_MIXING_HIDDEN_DIM = 512            # Hidden dim của Mixing network (Nâng lên 256)
+DEFAULT_GAT_HEADS = 16                     # Số đầu chú ý của GAT lớp thứ nhất (Nâng lên 16 heads)
 
 
 

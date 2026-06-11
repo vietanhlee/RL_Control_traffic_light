@@ -66,46 +66,63 @@ def _get_device() -> torch.device:
     return torch.device("cpu")
 
 
+class ResidualBlock(nn.Module):
+    """Khối kết nối tắt (Residual Block) cho mạng MLP giúp tăng chiều sâu và độ ổn định."""
+
+    def __init__(self, dim: int) -> None:
+        super().__init__()
+        self.fc1 = nn.Linear(dim, dim)
+        self.fc2 = nn.Linear(dim, dim)
+        self.act = nn.ReLU()
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        # Residual connection: x_out = x + f(x)
+        return x + self.act(self.fc2(self.act(self.fc1(x))))
+
+
 class IndividualQNet(nn.Module):
-    """Q-network cuc bo cho moi agent (Dueling DQN architecture).
+    """Q-network cục bộ cho mỗi agent (kiến trúc ResNet-Dueling DQN cao cấp).
 
-    Nhan: local_obs concat agent_id_onehot (da ghep ben ngoai)
-    Tra ra: Q-values cho 2 hanh dong [Keep, Change]
+    Nhận: local_obs concat agent_id_onehot
+    Trả ra: Q-values cho các hành động pha đèn
 
-    Su dung Dueling architecture de tach Value stream / Advantage stream,
-    giup hoc on dinh hon dac biet khi hanh dong khong luon quan trong.
+    Sử dụng Residual Blocks kết nối tắt để tăng khả năng học sâu không biến mất gradient.
 
     Args:
         input_dim  : obs_dim + n_agents (local obs + one-hot agent ID).
-        hidden_dim : So neuron moi lop an (mac dinh 128).
-        n_actions  : So hanh dong (mac dinh 2: Keep/Change).
+        hidden_dim : Số neuron mỗi lớp ẩn (mặc định 512).
+        n_actions  : Số hành động pha đèn (mặc định 4).
     """
 
     def __init__(
         self,
         input_dim: int,
-        hidden_dim: int = 256,
+        hidden_dim: int = 512,
         n_actions: int = 4,
     ) -> None:
         super().__init__()
 
-        # Feature extractor dung chung
+        # Feature extractor sâu dạng ResNet mini
         self.feature_layer = nn.Sequential(
             nn.Linear(input_dim, hidden_dim),
             nn.ReLU(),
+            ResidualBlock(hidden_dim),
+            ResidualBlock(hidden_dim),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
         )
-        # Advantage stream A(s, a)
+        # Advantage stream A(s, a) dạng Residual Dueling (ẩn 256 neuron)
         self.advantage_layer = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
+            ResidualBlock(hidden_dim // 2),
             nn.Linear(hidden_dim // 2, n_actions),
         )
-        # Value stream V(s)
+        # Value stream V(s) dạng Residual Dueling (ẩn 256 neuron)
         self.value_layer = nn.Sequential(
             nn.Linear(hidden_dim, hidden_dim // 2),
             nn.ReLU(),
+            ResidualBlock(hidden_dim // 2),
             nn.Linear(hidden_dim // 2, 1),
         )
 
@@ -169,8 +186,9 @@ class QMIXAgent:
         epsilon: float = 1.0,
         min_epsilon: float = 0.05,
         epsilon_decay: float = 0.9995,
-        hidden_dim: int = 256,
-        mixing_hidden_dim: int = 32,
+        hidden_dim: int = 512,
+        mixing_hidden_dim: int = 256,
+        gat_heads: int = 16,
         batch_size: int = 32,
         buffer_capacity: int = 5000,
         target_update_freq: int = 50,
@@ -184,6 +202,9 @@ class QMIXAgent:
         self.epsilon = epsilon
         self.min_epsilon = min_epsilon
         self.epsilon_decay = epsilon_decay
+        self.hidden_dim = hidden_dim
+        self.mixing_hidden_dim = mixing_hidden_dim
+        self.gat_heads = gat_heads
         self.batch_size = batch_size
         self.target_update_freq = target_update_freq
         self.seed = seed
@@ -257,10 +278,10 @@ class QMIXAgent:
 
         # ── Mixing Networks ────────────────────────────────────────────────
         self.mixing_net = MixingNetwork(
-            n_agents, obs_dim, mixing_hidden_dim, adj=self.adj
+            n_agents, obs_dim, mixing_hidden_dim, gat_heads=self.gat_heads, adj=self.adj
         ).to(self.device)
         self.target_mixing_net = MixingNetwork(
-            n_agents, obs_dim, mixing_hidden_dim, adj=self.adj
+            n_agents, obs_dim, mixing_hidden_dim, gat_heads=self.gat_heads, adj=self.adj
         ).to(self.device)
         self.target_mixing_net.load_state_dict(self.mixing_net.state_dict())
         self.target_mixing_net.eval()
@@ -485,6 +506,9 @@ class QMIXAgent:
             "epsilon_decay": self.epsilon_decay,
             "batch_size": self.batch_size,
             "target_update_freq": self.target_update_freq,
+            "hidden_dim": self.hidden_dim,
+            "mixing_hidden_dim": self.mixing_hidden_dim,
+            "gat_heads": self.gat_heads,
             "seed": self.seed,
             # Weights – luu tren CPU de load duoc tren bat ky device nao
             "q_net_state_dict": {k: v.cpu() for k, v in self.q_net.state_dict().items()},
@@ -516,9 +540,36 @@ class QMIXAgent:
             QMIXAgent da restore weights, hoac agent moi neu loi/khong co file.
         """
         source_path = Path(path)
+        from . import config
+
+        # Ánh xạ từ tham số sang tên hằng số trong config.py làm fallback
+        config_map = {
+            "learning_rate": "DEFAULT_LR",
+            "gamma": "DEFAULT_GAMMA",
+            "epsilon": "DEFAULT_EPSILON",
+            "min_epsilon": "DEFAULT_MIN_EPSILON",
+            "epsilon_decay": "DEFAULT_EPSILON_DECAY",
+            "batch_size": "DEFAULT_BATCH_SIZE",
+            "target_update_freq": "DEFAULT_TARGET_UPDATE_FREQ",
+            "hidden_dim": "DEFAULT_HIDDEN_DIM",
+            "mixing_hidden_dim": "DEFAULT_MIXING_HIDDEN_DIM",
+            "gat_heads": "DEFAULT_GAT_HEADS",
+        }
+
+        def get_clean_kwargs(kw: dict[str, Any]) -> dict[str, Any]:
+            clean = {}
+            for k, v in kw.items():
+                if v is not None:
+                    clean[k] = v
+                else:
+                    cfg_name = config_map.get(k)
+                    if cfg_name and hasattr(config, cfg_name):
+                        clean[k] = getattr(config, cfg_name)
+            return clean
+
         if not source_path.exists():
             print(f"[INFO] Khong tim thay QMIX model tai '{path}'. Khoi tao moi.")
-            return cls(n_agents=default_n_agents, obs_dim=default_obs_dim, **kwargs)
+            return cls(n_agents=default_n_agents, obs_dim=default_obs_dim, **get_clean_kwargs(kwargs))
 
         try:
             # map_location="cpu": load weights ve CPU truoc, agent se dua len device sau
@@ -527,23 +578,37 @@ class QMIXAgent:
             # Kiem tra algorithm tag
             if payload.get("algorithm") != "QMIX":
                 print(f"[WARNING] File '{path}' khong phai QMIX model. Khoi tao moi.")
-                return cls(n_agents=default_n_agents, obs_dim=default_obs_dim, **kwargs)
+                return cls(n_agents=default_n_agents, obs_dim=default_obs_dim, **get_clean_kwargs(kwargs))
+
+            # Đối với cấu trúc mạng, luôn ưu tiên tuyệt đối từ checkpoint để tránh size mismatch gây crash
+            hidden_dim = int(payload.get("hidden_dim", kwargs.get("hidden_dim") or 512))
+            mixing_hidden_dim = int(payload.get("mixing_hidden_dim", kwargs.get("mixing_hidden_dim") or 256))
+            gat_heads = int(payload.get("gat_heads", kwargs.get("gat_heads") or 16))
+            n_actions = int(payload.get("n_actions", kwargs.get("n_actions") or 4))
+
+            # Đối với hyperparameters, ưu tiên CLI explicit override (khác None) > checkpoint payload > config fallback
+            def resolve_param(name: str, default_val: Any) -> Any:
+                val = kwargs.get(name)
+                if val is not None:
+                    return val
+                return payload.get(name, default_val)
 
             agent = cls(
                 n_agents=int(payload["n_agents"]),
                 obs_dim=int(payload["obs_dim"]),
                 layout=kwargs.get("layout"),
                 connections=kwargs.get("connections"),
-                n_actions=int(payload.get("n_actions", 4)),
-                learning_rate=kwargs.get("learning_rate", float(payload.get("learning_rate", 0.0005))),
-                gamma=kwargs.get("gamma", float(payload.get("gamma", 0.96))),
-                epsilon=kwargs.get("epsilon", float(payload.get("epsilon", 1.0))),
-                min_epsilon=kwargs.get("min_epsilon", float(payload.get("min_epsilon", 0.05))),
-                epsilon_decay=kwargs.get("epsilon_decay", float(payload.get("epsilon_decay", 0.9995))),
-                batch_size=kwargs.get("batch_size", int(payload.get("batch_size", 32))),
-                target_update_freq=kwargs.get(
-                    "target_update_freq", int(payload.get("target_update_freq", 50))
-                ),
+                n_actions=n_actions,
+                learning_rate=resolve_param("learning_rate", getattr(config, "DEFAULT_LR", 0.0005)),
+                gamma=resolve_param("gamma", getattr(config, "DEFAULT_GAMMA", 0.95)),
+                epsilon=resolve_param("epsilon", getattr(config, "DEFAULT_EPSILON", 1.0)),
+                min_epsilon=resolve_param("min_epsilon", getattr(config, "DEFAULT_MIN_EPSILON", 0.05)),
+                epsilon_decay=resolve_param("epsilon_decay", getattr(config, "DEFAULT_EPSILON_DECAY", 0.9995)),
+                batch_size=resolve_param("batch_size", getattr(config, "DEFAULT_BATCH_SIZE", 64)),
+                target_update_freq=resolve_param("target_update_freq", getattr(config, "DEFAULT_TARGET_UPDATE_FREQ", 50)),
+                hidden_dim=hidden_dim,
+                mixing_hidden_dim=mixing_hidden_dim,
+                gat_heads=gat_heads,
                 seed=int(payload.get("seed", 42)),
             )
             # load_state_dict roi dua len device (agent.__init__ da goi .to(device) roi)
@@ -554,5 +619,7 @@ class QMIXAgent:
             print(f"[INFO] QMIX model loaded from '{path}' -> device={agent.device}")
             return agent
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             print(f"[WARNING] Khong the tai QMIX model tu '{path}' (loi: {exc}). Khoi tao moi.")
-            return cls(n_agents=default_n_agents, obs_dim=default_obs_dim, **kwargs)
+            return cls(n_agents=default_n_agents, obs_dim=default_obs_dim, **get_clean_kwargs(kwargs))

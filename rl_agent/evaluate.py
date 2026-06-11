@@ -15,7 +15,12 @@ from tqdm import tqdm
 
 from traffic_rl.agent import QMIXAgent
 from traffic_rl.client import ApiError, TrafficApiClient
-from traffic_rl.config import DEFAULT_BASE_URL, DEFAULT_DECISION_INTERVAL_SECONDS, DEFAULT_MODEL_PATH
+from traffic_rl.config import (
+    DEFAULT_BASE_URL,
+    DEFAULT_DECISION_INTERVAL_SECONDS,
+    DEFAULT_MODEL_PATH,
+    DEFAULT_GAT_HEADS,
+)
 from traffic_rl.environment import TrafficEnvironment
 from traffic_rl.features import build_features
 
@@ -30,6 +35,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--decision-interval", type=float, default=DEFAULT_DECISION_INTERVAL_SECONDS)
     parser.add_argument("--model-path", default=DEFAULT_MODEL_PATH, help="Đường dẫn file .pth")
     parser.add_argument("--steps", type=int, default=500, help="Số step đánh giá")
+    parser.add_argument("--gat-heads", type=int, default=None, help="Số đầu chú ý trong GAT")
     return parser
 
 
@@ -65,6 +71,7 @@ def main() -> int:
         default_obs_dim=obs_dim,
         layout=env.intersection_layout,
         connections=env.intersection_connections,
+        gat_heads=args.gat_heads,
     )
 
     print(f"[INFO] QMIX Evaluate | agents={n_agents} | obs_dim={obs_dim}")
