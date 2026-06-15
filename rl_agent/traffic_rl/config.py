@@ -14,7 +14,7 @@ DEFAULT_DECISION_INTERVAL_SECONDS = 1.5 # Giây chờ giữa các quyết địn
 DEFAULT_SAVE_EVERY = 250                   # Lưu model mỗi N step
 DEFAULT_MODEL_PATH = "artifacts/qmix_agent.pth"
 DEFAULT_HISTORY_WINDOW = 32               # Cửa sổ tính moving average
-GLOBAL_IMBALANCE_WEIGHT = 0.55            # Hệ số phạt imbalance toàn mạng khi gom joint reward
+GLOBAL_IMBALANCE_WEIGHT = 0.35            # Hệ số phạt imbalance toàn mạng khi gom joint reward
 
 # ─── QMIX Hyperparameters ─────────────────────────────────────────────────────
 DEFAULT_N_AGENTS = 16                     # Số agents = số nút giao thông

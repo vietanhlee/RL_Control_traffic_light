@@ -51,16 +51,16 @@ export default function App() {
       `${apiBase.replace(/^http/, "ws")}/ws/simulation/render`,
     );
     let lastRenderTime = 0;
-    const renderThrottleMs = 300; // Render xe ở tần số thấp ~3.3 FPS để chống lag bản đồ
+    const throttleMs = 500; // Cập nhật cả UI và Canvas ở tần số 2 FPS để chống giật lag
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      // Cập nhật các chỉ số ở tần số gốc của WebSocket
-      setMetrics(data);
-
-      // Cập nhật dữ liệu vẽ Canvas ở tần số thấp
       const now = Date.now();
-      if (now - lastRenderTime >= renderThrottleMs) {
+      // Chỉ parse JSON và cập nhật State sau mỗi throttleMs
+      if (now - lastRenderTime >= throttleMs) {
+        const data = JSON.parse(event.data);
+        
+        // Gộp chung bộ đếm để React chỉ re-render 3-4 lần/giây thay vì liên tục
+        setMetrics(data);
         setCanvasData({
           time_s: data.time_s,
           vehicles: data.vehicles,
@@ -981,6 +981,31 @@ export default function App() {
                   </div>
 
                   <div className="space-y-2">
+                    {/* Waiting Time Penalty */}
+                    <div className="space-y-0.5 border-b border-slate-800 pb-1.5 mb-1.5">
+                      <div className="flex justify-between text-[10px]">
+                        <span className="text-slate-300 font-bold">Waiting Time Penalty (Reward Core)</span>
+                        <span className="font-semibold text-rose-400 font-mono">
+                          -
+                          {rewardMetrics?.cost !== undefined
+                            ? rewardMetrics.cost.toFixed(2)
+                            : "0.00"}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-[#030712] overflow-hidden mt-1">
+                        <div
+                          className="h-full bg-gradient-to-r from-red-500 to-rose-600 rounded-full transition-all duration-300 shadow-[0_0_8px_rgba(244,63,94,0.6)]"
+                          style={{
+                            width: `${Math.min(((rewardMetrics?.waiting_time ?? 0) / 500.0) * 100, 100)}%`,
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-between text-[8px] text-slate-500 font-mono mt-0.5">
+                        <span>Total delay time</span>
+                        <span>{rewardMetrics?.waiting_time !== undefined ? rewardMetrics.waiting_time.toFixed(1) : "0.0"} s</span>
+                      </div>
+                    </div>
+
                     {/* Queue Penalty */}
                     <div className="space-y-0.5">
                       <div className="flex justify-between text-[10px]">

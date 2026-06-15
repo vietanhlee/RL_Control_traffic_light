@@ -61,32 +61,33 @@ INTERSECTION_CONNECTIONS = [
     (11, 15, 2),
 ]
 
-# ─── Cấu hình Reward & Trọng số RL ──────────────────────────────────────────────
-REWARD_OFFSET = 30
+# Cấu hình Reward & Trọng số RL ──────────────────────────────────────────────
+REWARD_OFFSET = 20
 
 # Trọng số phạt tổng số xe đang xếp hàng chờ (queue) ở tất cả các làn vào
-WEIGHT_QUEUE = 5.0
+WEIGHT_QUEUE = 12.0
 
 # Trọng số phạt sự mất cân bằng hàng chờ giữa các hướng
-WEIGHT_IMBALANCE = 7.0
+WEIGHT_IMBALANCE = 10.0
 
 # Trọng số phạt xe phải chờ ở làn đang đèn Đỏ (Red Pressure)
-WEIGHT_RED_PRESSURE = 4
+WEIGHT_RED_PRESSURE = 6.0 
 
 # Hình phạt cố định mỗi khi nút giao đổi pha đèn (từ Xanh -> Đỏ)
-WEIGHT_SWITCH_PENALTY = 3.0
+WEIGHT_SWITCH_PENALTY = 1.0
 
 # Điểm thưởng dựa trên vận tốc trung bình của các xe trong khu vực nút giao
-WEIGHT_SPEED_BONUS = 6.0
+WEIGHT_SPEED_BONUS = 10.0
 
 # ─── Hệ số chuẩn hóa (Scale Factors) ──────────────────────────────────────────
-SCALE_QUEUE = 80.0
-SCALE_IMBALANCE = 60.0
-SCALE_RED_PRESSURE = 50.0
-SCALE_SPEED = 55.0
+SCALE_QUEUE = 100.0
+SCALE_IMBALANCE = 80.0
+SCALE_RED_PRESSURE = 80.0
+SCALE_SPEED = 40.0
+SCALE_WAITING_TIME = 100.0
 
 # Giới hạn giá trị Reward trong khoảng [-REWARD_CLIP, +REWARD_CLIP]
 REWARD_CLIP = 30.0
 
 # ─── Hệ số phạt Imbalance Reward toàn mạng ──────────────────────────────────────
-GLOBAL_IMBALANCE_WEIGHT = 0.25
+GLOBAL_IMBALANCE_WEIGHT = 0.35

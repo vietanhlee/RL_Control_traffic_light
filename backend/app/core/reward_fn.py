@@ -25,6 +25,7 @@ from .constants import (
     SCALE_IMBALANCE,
     SCALE_RED_PRESSURE,
     SCALE_SPEED,
+    SCALE_WAITING_TIME,
     REWARD_CLIP,
 )
 
@@ -52,6 +53,7 @@ def compute_intersection_reward(
     red_pressure: float,
     speed_avg: float,
     switched: bool,
+    waiting_time_total: float = 0.0,
     *,
     w_queue: float = WEIGHT_QUEUE,
     w_imbalance: float = WEIGHT_IMBALANCE,
@@ -62,6 +64,7 @@ def compute_intersection_reward(
     scale_imbalance: float = SCALE_IMBALANCE,
     scale_red_pressure: float = SCALE_RED_PRESSURE,
     scale_speed: float = SCALE_SPEED,
+    scale_waiting_time: float = SCALE_WAITING_TIME,
     reward_offset: float = float(REWARD_OFFSET),
     reward_clip: float = REWARD_CLIP,
 ) -> RewardComponents:
@@ -71,27 +74,16 @@ def compute_intersection_reward(
     """
     switch_penalty = w_switch if switched else 0.0
 
-    # Tính các thành phần penalty & bonus
+    # Tính các thành phần penalty & bonus phụ để FE tiếp tục render chẩn đoán
     queue_penalty        = w_queue        * (queue_total  / scale_queue)
     imbalance_penalty    = w_imbalance    * (imbalance    / scale_imbalance)
     red_pressure_penalty = w_red_pressure * (red_pressure / scale_red_pressure)
     speed_bonus          = w_speed        * (speed_avg    / scale_speed)
 
-    cost = (
-        queue_penalty
-        + imbalance_penalty
-        + red_pressure_penalty
-        + switch_penalty
-        - speed_bonus
-    )
-
-    reward_raw = reward_offset - cost
-
-    # Phạt phi tuyến tính: Đã được gỡ bỏ để tránh làm gián đoạn gradient và gây ra cliff effect
-    # if reward_raw < 0.0:
-    #     reward_raw = -(abs(reward_raw) ** 1.5)
-
-    reward = max(-reward_clip, min(reward_clip, reward_raw))
+    # ── Thiết kế Reward mới: Chỉ phụ thuộc vào thời gian chờ ───────────
+    cost = waiting_time_total / scale_waiting_time
+    reward_raw = -cost
+    reward = max(-reward_clip, min(0.0, reward_raw))
 
     return RewardComponents(
         reward=reward,

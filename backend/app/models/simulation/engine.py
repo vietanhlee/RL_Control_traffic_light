@@ -516,6 +516,11 @@ class SimulationEngine:
 
         retained_vehicles = []
         for v in self.vehicles:
+            if v.is_waiting:
+                v.waiting_time_s = getattr(v, "waiting_time_s", 0.0) + dt
+            else:
+                v.waiting_time_s = 0.0
+
             if v.remaining_nodes >= 1:
                 retained_vehicles.append(v)
             else:
@@ -561,6 +566,7 @@ class SimulationEngine:
         vehicle.lane_index = min(vehicle.lane_index, new_edge.lanes - 1)
 
         vehicle.progress_m = max(0.0, overflow_m)
+        vehicle.waiting_time_s = 0.0
         return True
 
     def _sample_density(self) -> None:
@@ -590,10 +596,8 @@ class SimulationEngine:
             key = (vehicle.current_to, vehicle.current_from)
             edge = self.network.edge(vehicle.current_from, vehicle.current_to)
             distance_to_target = edge.length_m - vehicle.progress_m
-            light_state = self.intersections[vehicle.current_to].light_for(self.time_s, vehicle.current_from)
             if (
-                light_state == LightColor.RED
-                and distance_to_target <= ZONE_LENGTH_METERS
+                distance_to_target <= ZONE_LENGTH_METERS
                 and vehicle.speed_mps <= QUEUE_SPEED_THRESHOLD
             ):
                 group = "motorcycle" if vehicle.vehicle_type == VehicleType.MOTORCYCLE else "car"

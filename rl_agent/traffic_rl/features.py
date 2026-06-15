@@ -45,12 +45,18 @@ def build_features(observation: dict[str, object], max_directions: int = 4) -> l
     local_imbalance = float(observation.get("local_imbalance", 0.0))
     global_imbalance = float(observation.get("global_imbalance", 0.0))
 
+    incoming_nodes = observation.get("incoming_nodes", [])
+    if not isinstance(incoming_nodes, list):
+        incoming_nodes = []
+
+    if not incoming_nodes:
+        # Fallback: Sắp xếp theo ID của hướng tăng dần
+        incoming_nodes = sorted([int(k) for k in directions.keys() if k.isdigit()])
+
     parsed: list[tuple[int, float, float, float, tuple[float, float, float]]] = []
-    for raw_key, payload in directions.items():
-        try:
-            direction_id = int(raw_key)
-        except (TypeError, ValueError):
-            continue
+    for inc in incoming_nodes:
+        raw_key = str(inc)
+        payload = directions.get(raw_key, {})
         if not isinstance(payload, dict):
             continue
         queue, density, speed = _direction_tuple(payload)
@@ -59,10 +65,9 @@ def build_features(observation: dict[str, object], max_directions: int = 4) -> l
         if isinstance(light_states, dict):
             color = light_states.get(raw_key)
             if color is None:
-                color = light_states.get(direction_id)
-        parsed.append((direction_id, queue, density, speed, _color_flags(color if isinstance(color, str) else None)))
+                color = light_states.get(inc)
+        parsed.append((inc, queue, density, speed, _color_flags(color if isinstance(color, str) else None)))
 
-    parsed.sort(key=lambda item: item[1], reverse=True)
     top = parsed[:max_directions]
 
     queues = [item[1] for item in parsed]

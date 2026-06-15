@@ -33,8 +33,8 @@ DEFAULT_SAFE_GAP_METERS = 10.0
 # Tỷ lệ hướng rẽ mặc định tại các nút giao (Trái, Đi thẳng, Phải)
 DEFAULT_TURN_DISTRIBUTION = {
     "left": 0.1,
-    "straight": 0.75,
-    "right": 0.15,
+    "straight": 0.8,
+    "right": 0.1,
 }
 
 # ─── Cấu hình Đèn tín hiệu mặc định (khi không chạy RL) ─────────────────────────

@@ -26,6 +26,7 @@ class Vehicle:
     vehicle_type: VehicleType = VehicleType.CAR
     is_waiting: bool = False
     lane_index: int = 0
+    waiting_time_s: float = 0.0
     meta: dict = field(default_factory=dict)
 
     @property

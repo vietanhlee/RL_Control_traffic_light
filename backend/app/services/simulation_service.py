@@ -46,7 +46,13 @@ def calculate_intersection_reward(engine_inst, intersection_id: int, time_s: flo
     avg_q = sum(queues) / len(queues) if queues else 0.0
     imbalance = sum(abs(q - avg_q) for q in queues)
 
-    switched = (time_s - engine_inst.last_switch_time.get(intersection_id, -9999.0)) < 1.1
+    switched = (time_s - engine_inst.last_switch_time.get(intersection_id, -9999.0)) < 1.6
+
+    # Tính tổng thời gian chờ của các xe đi vào ngã tư này
+    total_waiting_time = 0.0
+    for v in engine_inst.vehicles:
+        if v.current_to == intersection_id:
+            total_waiting_time += getattr(v, "waiting_time_s", 0.0)
 
     # ── Gọi hàm tính reward từ module dùng chung ────────────────────────
     rc = compute_intersection_reward(
@@ -55,6 +61,7 @@ def calculate_intersection_reward(engine_inst, intersection_id: int, time_s: flo
         red_pressure=red_pressure,
         speed_avg=avg_speed,
         switched=switched,
+        waiting_time_total=total_waiting_time,
     )
 
     # Trả về đầy đủ các trường để Frontend chỉ việc render
@@ -79,6 +86,7 @@ def calculate_intersection_reward(engine_inst, intersection_id: int, time_s: flo
 
         "cost":                rc.cost,
         "reward":              rc.reward,
+        "waiting_time":        total_waiting_time,
     }
 
 def _run_simulation_steps(engine_inst, dt: float, steps_count: int, get_rl_state: bool):
