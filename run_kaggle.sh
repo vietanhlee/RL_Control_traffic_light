@@ -77,7 +77,7 @@ sleep 120
 echo "=== 8. Starting RL Training ==="
 # Chạy train từ đúng thư mục rl_agent như bạn yêu cầu.
 cd rl_agent || exit
-python -u train.py --steps 2000
+python -u train.py --steps 5000
 
 echo "=== Training Finished ==="
 # Dọn dẹp process backend sau khi train xong

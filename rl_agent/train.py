@@ -278,8 +278,14 @@ def main() -> int:
         # ── Bước 7: Cập nhật tqdm postfix mỗi 10 step ────────────────────
         if step % 10 == 0:
             w25 = min(len(reward_history), 25)
-            avg_r  = sum(reward_history[-25:]) / w25
-            avg_q  = sum(queue_history[-25:]) / w25
+            last_rewards = reward_history[-w25:]
+            last_queues = queue_history[-w25:]
+            avg_r  = sum(last_rewards) / w25
+            min_r  = min(last_rewards)
+            max_r  = max(last_rewards)
+            avg_q  = sum(last_queues) / w25
+            min_q  = min(last_queues)
+            max_q  = max(last_queues)
             avg_l  = sum(loss_history[-25:]) / max(len(loss_history[-25:]), 1)
             # Tỷ lệ action CHANGE tích lũy (%)
             chg_rate = change_count / (step * n_agents) * 100
@@ -287,8 +293,8 @@ def main() -> int:
                 {
                     "ε":    f"{agent.epsilon:.3f}",
                     "loss": f"{avg_l:.4f}",
-                    "r̄":   f"{avg_r:+.2f}",
-                    "q̄":   f"{avg_q:.1f}",
+                    "r̄":   f"{avg_r:+.2f}({min_r:+.1f}/{max_r:+.1f})",
+                    "q̄":   f"{avg_q:.1f}({min_q:.1f}/{max_q:.1f})",
                     "upd":  agent.update_count,
                     "chg%": f"{chg_rate:.0f}",
                     "buf":  len(agent.buffer),
@@ -299,18 +305,22 @@ def main() -> int:
         # ── Bước 7b: In log chi tiết mỗi 50 step ─────────────────────────
         if step % 50 == 0 and len(reward_history) >= 50:
             w50 = min(len(reward_history), 50)
-            avg_r50  = sum(reward_history[-50:]) / w50
-            best_r50 = max(reward_history[-50:])
-            worst_r50= min(reward_history[-50:])
-            avg_q50  = sum(queue_history[-50:]) / w50
+            last_rewards50 = reward_history[-w50:]
+            last_queues50 = queue_history[-w50:]
+            avg_r50  = sum(last_rewards50) / w50
+            max_r50 = max(last_rewards50)
+            min_r50 = min(last_rewards50)
+            avg_q50  = sum(last_queues50) / w50
+            max_q50 = max(last_queues50)
+            min_q50 = min(last_queues50)
             avg_l50  = sum(loss_history[-50:]) / max(len(loss_history[-50:]), 1)
             chg_rate = change_count / (step * n_agents) * 100
             tqdm.write(
                 f"  step={step:05d} | "
                 f"ε={agent.epsilon:.4f} | "
                 f"loss={avg_l50:.5f} | "
-                f"r̄={avg_r50:+.3f} (max={best_r50:+.2f}, min={worst_r50:+.2f}) | "
-                f"q̄={avg_q50:.1f} | "
+                f"r̄={avg_r50:+.3f} (min={min_r50:+.2f}, max={max_r50:+.2f}) | "
+                f"q̄={avg_q50:.1f} (min={min_q50:.1f}, max={max_q50:.1f}) | "
                 f"upd={agent.update_count} | "
                 f"chg%={chg_rate:.1f}% | "
                 f"buf={len(agent.buffer)}/{agent.buffer.capacity}"
