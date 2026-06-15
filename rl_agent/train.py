@@ -55,6 +55,7 @@ from traffic_rl.config import (
     DEFAULT_TARGET_UPDATE_FREQ,
     DEFAULT_GAT_HEADS,
     GLOBAL_IMBALANCE_WEIGHT,
+    DEFAULT_REWARD_TYPE,
 )
 from traffic_rl.environment import TrafficEnvironment
 from traffic_rl.features import build_features
@@ -115,7 +116,7 @@ def obs_dict_to_array(
         numpy array shape (n_agents, obs_dim).
     """
     return np.array(
-        [build_features(obs_dict[aid]) for aid in agent_ids],
+        [build_features(obs_dict[aid], obs_dict=obs_dict, intersection_id=aid) for aid in agent_ids],
         dtype=np.float32,
     )
 
@@ -229,7 +230,13 @@ def main() -> int:
 
         for i, aid in enumerate(agent_ids):
             obs = next_observation[aid]
-            reward = env.reward_for(obs, actions.get(aid, 0))
+            reward = env.reward_for(
+                intersection_id=aid,
+                obs_dict=next_observation,
+                action=actions.get(aid, 0),
+                reward_type=DEFAULT_REWARD_TYPE,
+                last_obs_dict=observation,
+            )
             step_rewards.append(reward)
             step_queue += float(obs.get("queue_total", 0.0))
 

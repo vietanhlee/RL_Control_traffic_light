@@ -8,6 +8,8 @@ def test_feature_vector_has_stable_size():
         "local_imbalance": 3.0,
         "global_imbalance": 8.0,
         "light_states": {"1": "GREEN", "2": "RED"},
+        "current_phase": 0,
+        "incoming_nodes": [1, 2],
         "directions": {
             "1": {
                 "queue_length": 4,
@@ -27,8 +29,9 @@ def test_feature_vector_has_stable_size():
     }
 
     features = build_features(observation)
-    assert len(features) > 0
-    assert features[0] == 1.0
+    assert len(features) == 12
+    # queue_1 / 40.0 = 4 / 40.0 = 0.1
+    assert features[0] == 0.1
 
 
 def test_qmix_agent_selects_actions_and_persists(tmp_path):

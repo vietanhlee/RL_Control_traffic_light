@@ -20,6 +20,7 @@ from traffic_rl.config import (
     DEFAULT_DECISION_INTERVAL_SECONDS,
     DEFAULT_MODEL_PATH,
     DEFAULT_GAT_HEADS,
+    DEFAULT_REWARD_TYPE,
 )
 from traffic_rl.environment import TrafficEnvironment
 from traffic_rl.features import build_features
@@ -86,7 +87,7 @@ def main() -> int:
 
     for step in pbar:
         obs_array = np.array(
-            [build_features(observation[aid]) for aid in agent_ids],
+            [build_features(observation[aid], obs_dict=observation, intersection_id=aid) for aid in agent_ids],
             dtype=np.float32,
         )
 
@@ -108,7 +109,15 @@ def main() -> int:
         step_rewards: list[float] = []
         for aid in agent_ids:
             obs = observation[aid]
-            step_rewards.append(env.reward_for(obs, actions.get(aid, 0)))
+            step_rewards.append(
+                env.reward_for(
+                    intersection_id=aid,
+                    obs_dict=observation,
+                    action=actions.get(aid, 0),
+                    reward_type=DEFAULT_REWARD_TYPE,
+                    last_obs_dict=env.last_obs,
+                )
+            )
             step_queue += float(obs.get("queue_total", 0.0))
 
         avg_queue = step_queue / max(n_agents, 1)

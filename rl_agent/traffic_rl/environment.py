@@ -26,10 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from .client import TrafficApiClient
-
-
-
-
+from .config import SCALE_REWARD_PRESSURE, SCALE_REWARD_DWT
 
 
 @dataclass
@@ -181,17 +178,79 @@ class TrafficEnvironment:
         """
         return float(observation.get("imbalance", 0.0))
 
-    def reward_for(self, observation: dict[str, Any], action: int) -> float:
-        """Lấy phần thưởng cho một nút giao đã được Backend tính sẵn từ API.
+    def reward_for(
+        self,
+        intersection_id: int,
+        obs_dict: dict[int, dict[str, Any]],
+        action: int,
+        reward_type: str = "pressure",
+        last_obs_dict: dict[int, dict[str, Any]] | None = None,
+    ) -> float:
+        """Lấy phần thưởng cho một nút giao (hỗ trợ 3 chế độ).
 
         Args:
-            observation: Dict observation của nút giao.
-            action     : Hành động vừa áp dụng (0=Keep, 1=Change).
+            intersection_id : ID nút giao cần tính reward.
+            obs_dict        : Dict chứa observations mới của tất cả nút giao.
+            action          : Hành động vừa thực hiện.
+            reward_type     : Chế độ tính: "pressure", "dwt", hoặc "backend".
+            last_obs_dict   : Dict chứa observations ở bước trước đó (dành cho dwt).
 
         Returns:
             Phần thưởng (float).
         """
-        return float(observation.get("reward", 0.0))
+        observation = obs_dict.get(intersection_id, {})
+        if reward_type == "backend":
+            return float(observation.get("reward", 0.0))
+
+        if reward_type == "dwt":
+            if last_obs_dict is None:
+                return 0.0
+            # dwt = W_t - W_{t+1}
+            w_t = float(last_obs_dict.get(intersection_id, {}).get("reward_metrics", {}).get("waiting_time", 0.0))
+            w_t1 = float(observation.get("reward_metrics", {}).get("waiting_time", 0.0))
+            return (w_t - w_t1) / SCALE_REWARD_DWT
+
+        # Mặc định là chế độ "pressure": R = - \sum |Pressure_p| / SCALE_REWARD_PRESSURE
+        incoming_nodes = observation.get("incoming_nodes", [])
+        if not isinstance(incoming_nodes, list):
+            incoming_nodes = []
+        directions = observation.get("directions", {})
+        if not isinstance(directions, dict):
+            directions = {}
+
+        if not incoming_nodes:
+            incoming_nodes = sorted([int(k) for k in directions.keys() if k.isdigit()])
+
+        total_abs_pressure = 0.0
+        for inc in incoming_nodes:
+            payload = directions.get(str(inc), {})
+            if not isinstance(payload, dict):
+                continue
+
+            density_in = float(payload.get("motorcycle_density", 0.0)) + float(payload.get("car_density", 0.0))
+
+            outgoing_densities = []
+            for other_inc in incoming_nodes:
+                if other_inc == inc:
+                    continue
+                neighbor_state = obs_dict.get(other_inc)
+                if neighbor_state is not None:
+                    neighbor_dirs = neighbor_state.get("directions", {})
+                    if isinstance(neighbor_dirs, dict):
+                        payload_out = neighbor_dirs.get(str(intersection_id), {})
+                        if isinstance(payload_out, dict):
+                            density_out = float(payload_out.get("motorcycle_density", 0.0)) + float(payload_out.get("car_density", 0.0))
+                            outgoing_densities.append(density_out)
+
+            if outgoing_densities:
+                avg_density_out = sum(outgoing_densities) / len(outgoing_densities)
+            else:
+                avg_density_out = 0.0
+
+            pressure = density_in - avg_density_out
+            total_abs_pressure += abs(pressure)
+
+        return -total_abs_pressure / SCALE_REWARD_PRESSURE
 
     def apply_actions(self, actions: dict[int, int]) -> None:
         """Gửi hành động lên backend và cập nhật IntersectionRecord.

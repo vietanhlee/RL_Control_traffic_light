@@ -1,14 +1,8 @@
 from __future__ import annotations
 
 import math
-from statistics import mean
-from typing import Iterable
-
-
-MAX_QUEUE_SCALE = 40.0
-MAX_DENSITY_SCALE = 10.0
-MAX_SPEED_SCALE = 30.0
-MAX_DEGREE = 4.0
+from typing import Any
+from .config import MAX_QUEUE_SCALE, MAX_PRESSURE_SCALE
 
 
 def _safe_div(value: float, scale: float) -> float:
@@ -17,108 +11,86 @@ def _safe_div(value: float, scale: float) -> float:
     return max(-5.0, min(5.0, value / scale))
 
 
-def _direction_tuple(direction: dict[str, float]) -> tuple[float, float, float]:
-    queue = float(direction.get("queue_length", 0.0))
-    density = float(direction.get("motorcycle_density", 0.0)) + float(direction.get("car_density", 0.0))
-    speed = (
-        float(direction.get("motorcycle_avg_speed", 0.0))
-        + float(direction.get("car_avg_speed", 0.0))
-    ) / 2.0
-    return queue, density, speed
+def build_features(
+    observation: dict[str, Any],
+    obs_dict: dict[int, dict[str, Any]] | None = None,
+    intersection_id: int | None = None,
+    max_directions: int = 4,
+) -> list[float]:
+    """Trích xuất 12 đặc trưng vật lý bất biến (SOTA) cho Agent.
 
-
-def _color_flags(color: str | None) -> tuple[float, float, float]:
-    normalized = (color or "").upper()
-    return (
-        1.0 if normalized == "GREEN" else 0.0,
-        1.0 if normalized == "YELLOW" else 0.0,
-        1.0 if normalized == "RED" else 0.0,
-    )
-
-
-def build_features(observation: dict[str, object], max_directions: int = 4) -> list[float]:
-    directions = observation.get("directions", {})
-    if not isinstance(directions, dict):
-        directions = {}
-
-    time_s = float(observation.get("time", 0.0))
-    local_imbalance = float(observation.get("local_imbalance", 0.0))
-    global_imbalance = float(observation.get("global_imbalance", 0.0))
-
+    Dạng vector: [Q_1, P_1, Q_2, P_2, Q_3, P_3, Q_4, P_4, Phase_onehot]
+    Trong đó:
+      - Q_p: Hàng chờ của pha p (chuẩn hóa theo MAX_QUEUE_SCALE)
+      - P_p: Áp suất của pha p (chuẩn hóa theo MAX_PRESSURE_SCALE)
+      - Phase_onehot: One-hot vector của pha hiện tại (4 chiều)
+    """
     incoming_nodes = observation.get("incoming_nodes", [])
     if not isinstance(incoming_nodes, list):
         incoming_nodes = []
+
+    directions = observation.get("directions", {})
+    if not isinstance(directions, dict):
+        directions = {}
 
     if not incoming_nodes:
         # Fallback: Sắp xếp theo ID của hướng tăng dần
         incoming_nodes = sorted([int(k) for k in directions.keys() if k.isdigit()])
 
-    parsed: list[tuple[int, float, float, float, tuple[float, float, float]]] = []
-    for inc in incoming_nodes:
-        raw_key = str(inc)
-        payload = directions.get(raw_key, {})
-        if not isinstance(payload, dict):
-            continue
-        queue, density, speed = _direction_tuple(payload)
-        light_states = observation.get("light_states", {})
-        color = None
-        if isinstance(light_states, dict):
-            color = light_states.get(raw_key)
-            if color is None:
-                color = light_states.get(inc)
-        parsed.append((inc, queue, density, speed, _color_flags(color if isinstance(color, str) else None)))
+    features: list[float] = []
 
-    top = parsed[:max_directions]
+    for idx in range(max_directions):
+        if idx < len(incoming_nodes):
+            inc = incoming_nodes[idx]
+            raw_key = str(inc)
+            payload = directions.get(raw_key, {})
+            if not isinstance(payload, dict):
+                payload = {}
 
-    queues = [item[1] for item in parsed]
-    densities = [item[2] for item in parsed]
-    speeds = [item[3] for item in parsed]
+            # 1. Hàng chờ (Queue)
+            queue = float(payload.get("queue_length", 0.0))
 
-    total_queue = sum(queues)
-    total_density = sum(densities)
-    avg_queue = mean(queues) if queues else 0.0
-    avg_density = mean(densities) if densities else 0.0
-    avg_speed = mean(speeds) if speeds else 0.0
-    min_queue = min(queues) if queues else 0.0
-    max_queue = max(queues) if queues else 0.0
-    min_speed = min(speeds) if speeds else 0.0
-    max_speed = max(speeds) if speeds else 0.0
-    queue_imbalance = sum(abs(q - avg_queue) for q in queues)
+            # 2. Áp suất (Pressure) = Vehicles_in - Vehicles_out
+            density_in = float(payload.get("motorcycle_density", 0.0)) + float(payload.get("car_density", 0.0))
 
-    features: list[float] = [
-        1.0,
-        math.sin(time_s / 30.0),
-        math.cos(time_s / 30.0),
-        _safe_div(float(len(parsed)), MAX_DEGREE),
-        _safe_div(total_queue, MAX_QUEUE_SCALE),
-        _safe_div(avg_queue, MAX_QUEUE_SCALE),
-        _safe_div(min_queue, MAX_QUEUE_SCALE),
-        _safe_div(max_queue, MAX_QUEUE_SCALE),
-        _safe_div(queue_imbalance, MAX_QUEUE_SCALE),
-        _safe_div(total_density, MAX_DENSITY_SCALE),
-        _safe_div(avg_density, MAX_DENSITY_SCALE),
-        _safe_div(avg_speed, MAX_SPEED_SCALE),
-        _safe_div(min_speed, MAX_SPEED_SCALE),
-        _safe_div(max_speed, MAX_SPEED_SCALE),
-        _safe_div(local_imbalance, MAX_QUEUE_SCALE),
-        _safe_div(global_imbalance, MAX_QUEUE_SCALE * 4.0),
-    ]
+            # Tính outgoing density của các hướng đi ra khỏi nút giao này
+            outgoing_densities = []
+            if obs_dict is not None and intersection_id is not None:
+                # Các ngã rẽ hợp lệ là tất cả incoming_nodes ngoại trừ chính hướng đi vào inc
+                for other_inc in incoming_nodes:
+                    if other_inc == inc:
+                        continue
+                    # Đường từ intersection_id -> other_inc, tức là chiều incoming của other_inc từ intersection_id
+                    neighbor_state = obs_dict.get(other_inc)
+                    if neighbor_state is not None:
+                        neighbor_dirs = neighbor_state.get("directions", {})
+                        if isinstance(neighbor_dirs, dict):
+                            payload_out = neighbor_dirs.get(str(intersection_id), {})
+                            if isinstance(payload_out, dict):
+                                density_out = float(payload_out.get("motorcycle_density", 0.0)) + float(payload_out.get("car_density", 0.0))
+                                outgoing_densities.append(density_out)
 
-    for _, queue, density, speed, flags in top:
-        features.extend(
-            [
-                _safe_div(queue, MAX_QUEUE_SCALE),
-                _safe_div(density, MAX_DENSITY_SCALE),
-                _safe_div(speed, MAX_SPEED_SCALE),
-                flags[0],
-                flags[1],
-                flags[2],
-            ]
-        )
+            if outgoing_densities:
+                avg_density_out = sum(outgoing_densities) / len(outgoing_densities)
+            else:
+                avg_density_out = 0.0
 
-    missing = max_directions - len(top)
-    for _ in range(missing):
-        features.extend([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+            pressure = density_in - avg_density_out
+
+            # Nạp đặc trưng đã chuẩn hóa
+            features.append(_safe_div(queue, MAX_QUEUE_SCALE))
+            features.append(_safe_div(pressure, MAX_PRESSURE_SCALE))
+        else:
+            # Padding nếu nút giao có ít hơn 4 hướng vào
+            features.extend([0.0, 0.0])
+
+    # 3. Một-nóng (One-hot) biểu diễn pha hiện tại (4 chiều)
+    current_phase = int(observation.get("current_phase", 0))
+    phase_onehot = [0.0] * 4
+    if 0 <= current_phase < 4:
+        phase_onehot[current_phase] = 1.0
+    features.extend(phase_onehot)
 
     return features
+
 
