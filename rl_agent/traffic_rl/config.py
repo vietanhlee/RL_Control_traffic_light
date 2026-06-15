@@ -17,7 +17,7 @@ DEFAULT_HISTORY_WINDOW = 32               # Cửa sổ tính moving average
 GLOBAL_IMBALANCE_WEIGHT = 0.35            # Hệ số phạt imbalance toàn mạng khi gom joint reward
 
 # ─── Reward & Normalization Scales ────────────────────────────────────────────
-DEFAULT_REWARD_TYPE = "pressure"          # Chế độ reward: "pressure" hoặc "dwt" hoặc "backend"
+DEFAULT_REWARD_TYPE = "dwt"          # Chế độ reward: "pressure" hoặc "dwt" hoặc "backend"
 MAX_QUEUE_SCALE = 40.0                    # Quy đổi hàng chờ về dải [0, 1.0]
 MAX_PRESSURE_SCALE = 20.0                 # Quy đổi áp suất về dải [-1.0, 1.0]
 SCALE_REWARD_PRESSURE = 20.0              # Quy đổi reward áp suất về dải [-4.0, 0.0]
