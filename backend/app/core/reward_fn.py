@@ -27,6 +27,10 @@ from .constants import (
     SCALE_SPEED,
     SCALE_WAITING_TIME,
     REWARD_CLIP,
+    DEFAULT_REWARD_TYPE,
+    W_FAIR_QUEUE,
+    W_FAIR_DEV,
+    SCALE_FAIR_DEV,
 )
 
 
@@ -54,7 +58,9 @@ def compute_intersection_reward(
     speed_avg: float,
     switched: bool,
     waiting_time_total: float = 0.0,
+    queue_std: float = 0.0,
     *,
+    reward_type: str = DEFAULT_REWARD_TYPE,
     w_queue: float = WEIGHT_QUEUE,
     w_imbalance: float = WEIGHT_IMBALANCE,
     w_red_pressure: float = WEIGHT_RED_PRESSURE,
@@ -67,6 +73,9 @@ def compute_intersection_reward(
     scale_waiting_time: float = SCALE_WAITING_TIME,
     reward_offset: float = float(REWARD_OFFSET),
     reward_clip: float = REWARD_CLIP,
+    w_fair_queue: float = W_FAIR_QUEUE,
+    w_fair_dev: float = W_FAIR_DEV,
+    scale_fair_dev: float = SCALE_FAIR_DEV,
 ) -> RewardComponents:
     """Tính reward cho một nút giao thông.
 
@@ -80,10 +89,17 @@ def compute_intersection_reward(
     red_pressure_penalty = w_red_pressure * (red_pressure / scale_red_pressure)
     speed_bonus          = w_speed        * (speed_avg    / scale_speed)
 
-    # ── Thiết kế Reward mới: Chỉ phụ thuộc vào thời gian chờ ───────────
-    cost = waiting_time_total / scale_waiting_time
-    reward_raw = -cost
-    reward = max(-reward_clip, min(0.0, reward_raw))
+    # ── Thiết kế Reward mới ───────────────────────────
+    if reward_type == "fairness":
+        # fairness = w_fair_queue * (Q / SCALE_QUEUE) + w_fair_dev * (STD / SCALE_FAIR_DEV)
+        cost = w_fair_queue * (queue_total / scale_queue) + w_fair_dev * (queue_std / scale_fair_dev)
+        reward_raw = -cost
+        reward = max(-reward_clip, min(0.0, reward_raw))
+    else:
+        # Mặc định là "waiting_time" (backend cũ)
+        cost = waiting_time_total / scale_waiting_time
+        reward_raw = -cost
+        reward = max(-reward_clip, min(0.0, reward_raw))
 
     return RewardComponents(
         reward=reward,
@@ -99,3 +115,4 @@ def compute_intersection_reward(
         red_pressure_pct=min((red_pressure / scale_red_pressure) * 100, 100.0),
         speed_pct=min((speed_avg / scale_speed) * 100, 100.0),
     )
+

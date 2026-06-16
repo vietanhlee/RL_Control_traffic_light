@@ -136,3 +136,44 @@ def test_combined_reward_calculation():
     
     assert abs(r_combined - (-0.43)) < 1e-6
 
+
+def test_fairness_reward_calculation():
+    from rl_agent.traffic_rl.environment import TrafficEnvironment
+    
+    env = TrafficEnvironment(client=None)  # type: ignore
+    
+    obs_dict = {
+        1: {
+            "incoming_nodes": [2, 3],
+            "directions": {
+                "2": {
+                    "queue_length": 12.0
+                },
+                "3": {
+                    "queue_length": 8.0
+                }
+            }
+        }
+    }
+    
+    r_fairness = env.reward_for(
+        intersection_id=1,
+        obs_dict=obs_dict,
+        action=0,
+        reward_type="fairness"
+    )
+    
+    # Tính toán kỳ vọng:
+    # queues = [12.0, 8.0]
+    # queue_total = 20.0
+    # avg_q = 10.0
+    # variance = ((12.0 - 10.0)^2 + (8.0 - 10.0)^2) / 2 = 4.0
+    # queue_std = sqrt(4.0) = 2.0
+    # cost = W_FAIR_QUEUE * (queue_total / SCALE_QUEUE) + W_FAIR_DEV * (queue_std / SCALE_FAIR_DEV)
+    #      = 0.5 * (20.0 / 100.0) + 0.5 * (2.0 / 20.0)
+    #      = 0.1 + 0.05 = 0.15
+    # r_fairness = -cost = -0.15
+    
+    assert abs(r_fairness - (-0.15)) < 1e-6
+
+

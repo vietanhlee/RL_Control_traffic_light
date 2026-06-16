@@ -26,7 +26,18 @@ from pathlib import Path
 from typing import Any
 
 from .client import TrafficApiClient
-from .config import SCALE_REWARD_PRESSURE, SCALE_REWARD_DWT, W_BACKEND, W_DWT, W_PRESSURE
+from .config import (
+    SCALE_REWARD_PRESSURE,
+    SCALE_REWARD_DWT,
+    W_BACKEND,
+    W_DWT,
+    W_PRESSURE,
+    SCALE_QUEUE,
+    W_FAIR_QUEUE,
+    W_FAIR_DEV,
+    SCALE_FAIR_DEV,
+)
+
 
 
 @dataclass
@@ -201,6 +212,28 @@ class TrafficEnvironment:
         observation = obs_dict.get(intersection_id, {})
         if reward_type == "backend":
             return float(observation.get("reward", 0.0))
+
+        if reward_type == "fairness":
+            incoming_nodes = observation.get("incoming_nodes", [])
+            if not incoming_nodes:
+                incoming_nodes = sorted([int(k) for k in observation.get("directions", {}).keys() if k.isdigit()])
+            
+            queues = []
+            directions = observation.get("directions", {})
+            for inc in incoming_nodes:
+                payload = directions.get(str(inc), {})
+                q_val = float(payload.get("queue_length", 0.0))
+                queues.append(q_val)
+            
+            queue_total = sum(queues)
+            avg_q = sum(queues) / len(queues) if queues else 0.0
+            variance = sum((q - avg_q) ** 2 for q in queues) / len(queues) if queues else 0.0
+            import math
+            queue_std = math.sqrt(variance)
+            
+            cost = W_FAIR_QUEUE * (queue_total / SCALE_QUEUE) + W_FAIR_DEV * (queue_std / SCALE_FAIR_DEV)
+            r_fair = -cost
+            return max(-100.0, r_fair)
 
         if reward_type == "combined":
             # 1. Backend Reward (Thời gian chờ tích lũy)

@@ -62,7 +62,7 @@ INTERSECTION_CONNECTIONS = [
 ]
 
 # Cấu hình Reward & Trọng số RL ──────────────────────────────────────────────
-REWARD_OFFSET = 20
+REWARD_OFFSET = 100
 
 # Trọng số phạt tổng số xe đang xếp hàng chờ (queue) ở tất cả các làn vào
 WEIGHT_QUEUE = 12.0
@@ -86,8 +86,15 @@ SCALE_RED_PRESSURE = 80.0
 SCALE_SPEED = 40.0
 SCALE_WAITING_TIME = 100.0
 
+# Chế độ reward mặc định của Backend: "waiting_time" hoặc "fairness"
+DEFAULT_REWARD_TYPE = "fairness"
+W_FAIR_QUEUE = 0.5
+W_FAIR_DEV = 0.5
+SCALE_FAIR_DEV = 20.0
+
 # Giới hạn giá trị Reward trong khoảng [-REWARD_CLIP, +REWARD_CLIP]
-REWARD_CLIP = 30.0
+REWARD_CLIP = 100.0
 
 # ─── Hệ số phạt Imbalance Reward toàn mạng ──────────────────────────────────────
 GLOBAL_IMBALANCE_WEIGHT = 0.35
+
