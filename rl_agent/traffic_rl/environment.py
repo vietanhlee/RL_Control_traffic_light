@@ -26,7 +26,7 @@ from pathlib import Path
 from typing import Any
 
 from .client import TrafficApiClient
-from .config import SCALE_REWARD_PRESSURE, SCALE_REWARD_DWT
+from .config import SCALE_REWARD_PRESSURE, SCALE_REWARD_DWT, W_BACKEND, W_DWT, W_PRESSURE
 
 
 @dataclass
@@ -201,6 +201,51 @@ class TrafficEnvironment:
         observation = obs_dict.get(intersection_id, {})
         if reward_type == "backend":
             return float(observation.get("reward", 0.0))
+
+        if reward_type == "combined":
+            # 1. Backend Reward (Thời gian chờ tích lũy)
+            waiting_time_total = float(observation.get("reward_metrics", {}).get("waiting_time", 0.0))
+            r_backend = - (waiting_time_total / 100.0)
+            r_backend = max(-30.0, r_backend)
+
+            # 2. DWT Reward (Vi phân thời gian chờ)
+            if last_obs_dict is not None:
+                w_t = float(last_obs_dict.get(intersection_id, {}).get("reward_metrics", {}).get("waiting_time", 0.0))
+                w_t1 = waiting_time_total
+                r_dwt = (w_t - w_t1) / SCALE_REWARD_DWT
+            else:
+                r_dwt = 0.0
+
+            # 3. Pressure Reward (Áp suất dòng xe)
+            incoming_nodes = observation.get("incoming_nodes", [])
+            if not incoming_nodes:
+                incoming_nodes = sorted([int(k) for k in observation.get("directions", {}).keys() if k.isdigit()])
+            
+            total_abs_pressure = 0.0
+            directions = observation.get("directions", {})
+            for inc in incoming_nodes:
+                payload = directions.get(str(inc), {})
+                density_in = float(payload.get("motorcycle_density", 0.0)) + float(payload.get("car_density", 0.0))
+                
+                outgoing_densities = []
+                for other_inc in incoming_nodes:
+                    if other_inc == inc:
+                        continue
+                    neighbor_state = obs_dict.get(other_inc)
+                    if neighbor_state is not None:
+                        neighbor_dirs = neighbor_state.get("directions", {})
+                        payload_out = neighbor_dirs.get(str(intersection_id), {}) if isinstance(neighbor_dirs, dict) else {}
+                        density_out = float(payload_out.get("motorcycle_density", 0.0)) + float(payload_out.get("car_density", 0.0))
+                        outgoing_densities.append(density_out)
+                
+                avg_density_out = sum(outgoing_densities) / len(outgoing_densities) if outgoing_densities else 0.0
+                pressure = density_in - avg_density_out
+                total_abs_pressure += abs(pressure)
+            
+            r_pressure = -total_abs_pressure / SCALE_REWARD_PRESSURE
+
+            # Tổ hợp tuyến tính
+            return W_BACKEND * r_backend + W_DWT * r_dwt + W_PRESSURE * r_pressure
 
         if reward_type == "dwt":
             if last_obs_dict is None:

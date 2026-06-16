@@ -17,7 +17,10 @@ DEFAULT_HISTORY_WINDOW = 32               # Cửa sổ tính moving average
 GLOBAL_IMBALANCE_WEIGHT = 0.35            # Hệ số phạt imbalance toàn mạng khi gom joint reward
 
 # ─── Reward & Normalization Scales ────────────────────────────────────────────
-DEFAULT_REWARD_TYPE = "pessure"          # Chế độ reward: "pressure" hoặc "dwt" hoặc "backend"
+DEFAULT_REWARD_TYPE = "combined"          # Chế độ reward: "pressure" hoặc "dwt" hoặc "backend" hoặc "combined"
+W_BACKEND = 0.5                           # Trọng số reward thời gian chờ tích lũy (mỏ neo chính)
+W_DWT = 0.3                               # Trọng số reward thời gian chờ vi phân (đẩy nhanh tốc độ học)
+W_PRESSURE = 0.2                          # Trọng số reward áp suất dòng xe (phối hợp chống kẹt dây chuyền)
 MAX_QUEUE_SCALE = 40.0                    # Quy đổi hàng chờ về dải [0, 1.0]
 MAX_PRESSURE_SCALE = 20.0                 # Quy đổi áp suất về dải [-1.0, 1.0]
 SCALE_REWARD_PRESSURE = 20.0              # Quy đổi reward áp suất về dải [-4.0, 0.0]
